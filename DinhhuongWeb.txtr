@@ -346,7 +346,4 @@ PHẦN BỔ SUNG CHO TRELLO – PRODUCT BACKLOG RIÊNG (DÀNH CHO BÁO CÁO / N�
 
 Lưu ý: Đây là phần bổ sung để tách ra dùng cho báo cáo / Trello dành riêng cho giảng viên, không phá cấu trúc Trello hiện tại.
 
-//cd "D:\.vscode\24CT1_Nguyen_Luong_Nhat_Phuong_CNPM\LOKI"
-git add .
-git commit -m "Mô tả thay đổi"
-git push
+//
