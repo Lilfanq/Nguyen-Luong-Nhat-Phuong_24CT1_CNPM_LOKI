@@ -1,0 +1,39 @@
+@startuml LOKI_Dang_nhap
+ title Dang nhap
+ actor "Game thu" as Gamer
+ boundary "path FE" as FE
+ control "path BE" as BE
+ participant "db/table\nusers, profiles" as Tables
+ database "CSDL" as DB
+
+ Gamer -> FE : Nhap email va mat khau
+ activate FE
+ FE -> BE : Gui yeu cau dang nhap
+ activate BE
+ deactivate FE
+ BE -> Tables : Tim tai khoan theo email
+ activate Tables
+ Tables -> DB : SELECT users
+ activate DB
+ DB --> Tables : Tra tai khoan va mat khau ma hoa
+ deactivate DB
+ Tables --> BE : Thong tin tai khoan
+ deactivate Tables
+ alt [Thong tin dang nhap hop le]
+   BE -> BE : Xac thuc mat khau va tao phien
+   BE -> Tables : Lay ho so va cau hinh
+   activate Tables
+   Tables -> DB : SELECT profiles theo user_id
+   activate DB
+   DB --> Tables : Tra danh sach profiles
+   deactivate DB
+   Tables --> BE : Ho so va cau hinh
+   deactivate Tables
+   BE --> FE : Tra phien va du lieu nguoi dung
+   FE --> Gamer : Hien thi trang chu
+ else [Sai email hoac mat khau]
+   BE --> FE : Tra loi xac thuc that bai
+   FE --> Gamer : Hien thi thong bao dang nhap loi
+ end
+ deactivate BE
+@enduml
