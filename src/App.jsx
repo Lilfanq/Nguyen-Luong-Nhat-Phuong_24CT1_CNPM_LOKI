@@ -4,6 +4,10 @@ import { supabase } from './supabaseClient'
 import { createProfileName, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, persistProfiles, saveActiveProfile, saveProfilesToSupabase } from './profileService'
 import './App.css'
 
+function publicAsset(path) {
+  return `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
+}
+
 const mouseControls = [
   { label: 'Left click', placement: 'left-click', anchor: [465, 180], edge: [220, 118], path: 'M465 180 H448 Q425 180 425 157 V118 H220' },
   { label: 'Right Click', placement: 'right-click', anchor: [535, 180], edge: [690, 126], path: 'M535 180 H555 Q578 180 578 157 V126 H690' },
@@ -128,8 +132,8 @@ function deviceHistoryEntry(device) {
 
 function deviceAssetPath(device, connected) {
   const name = (device.productName || device.name || '').toLowerCase()
-  if (name.includes('mouse') || name.includes('viper')) return connected ? '/devices/mouse/connect/Razer%20Viper%20V4%20Pro%20White%20Edition.png' : '/devices/mouse/disconnect/Razer%20Viper%20V4%20Pro%20White%20Edition.png'
-  if (name.includes('aula') || name.includes('hero') || name.includes('win68') || name.includes('keyboard') || name.includes('key')) return connected ? '/devices/keyboard/connect/AULA%20HERO%20WIN68HE.png' : '/devices/keyboard/disconnect/AULA%20HERO%20WIN68HE.png'
+  if (name.includes('mouse') || name.includes('viper')) return publicAsset(connected ? '/devices/mouse/connect/Razer%20Viper%20V4%20Pro%20White%20Edition.png' : '/devices/mouse/disconnect/Razer%20Viper%20V4%20Pro%20White%20Edition.png')
+  if (name.includes('aula') || name.includes('hero') || name.includes('win68') || name.includes('keyboard') || name.includes('key')) return publicAsset(connected ? '/devices/keyboard/connect/AULA%20HERO%20WIN68HE.png' : '/devices/keyboard/disconnect/AULA%20HERO%20WIN68HE.png')
   return null
 }
 
@@ -621,7 +625,7 @@ function DeviceVisual({ device }) {
   const name = device.productName?.toLowerCase() || ''
   const isMouse = name.includes('mouse') || name.includes('viper')
   const isKeyboard = name.includes('keyboard') || name.includes('key') || name.includes('he')
-  const imagePath = isMouse ? '/devices/mouse/preview/Razer%20Viper%20V4%20Pro.webp' : isKeyboard ? '/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp' : null
+  const imagePath = isMouse ? publicAsset('/devices/mouse/preview/Razer%20Viper%20V4%20Pro.webp') : isKeyboard ? publicAsset('/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp') : null
 
   return <div className={`device-visual relative flex items-center justify-center overflow-hidden bg-gradient-to-br ${isMouse ? 'from-emerald-950/80 to-zinc-950' : 'from-fuchsia-950/70 to-zinc-950'}`} aria-hidden="true">
     {imagePath && !imageFailed ? <img className="max-h-full max-w-full object-contain px-2 py-1" src={imagePath} alt="" onError={() => setImageFailed(true)} /> : <div className={`relative border border-emerald-400/50 bg-black/60 shadow-[0_0_18px_rgba(0,255,102,.15)] ${isMouse ? 'h-10 w-7 rounded-[45%]' : isKeyboard ? 'h-6 w-20 rounded-sm' : 'h-8 w-12 rounded-md'}`}>
@@ -751,14 +755,14 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
     <div className={`workspace-map ${isMouse ? 'workspace-map-mouse' : 'workspace-map-keyboard'}`}>
       <span className="workspace-map-status" aria-hidden="true" />
       {isMouse ? <>
-        <img className="workspace-mouse-art" src="/devices/mouse/preview/Razer%20Viper%20V4%20Pro.webp" alt={`${name} top view`} />
+        <img className="workspace-mouse-art" src={publicAsset('/devices/mouse/preview/Razer%20Viper%20V4%20Pro.webp')} alt={`${name} top view`} />
         <svg className="workspace-map-lines" viewBox="0 0 1000 720" preserveAspectRatio="none" aria-hidden="true">
           {mouseControls.map(({ label, anchor, edge, path }) => <g key={label}><path d={path} /><circle cx={anchor[0]} cy={anchor[1]} r="5" /><circle cx={edge[0]} cy={edge[1]} r="5" /></g>)}
         </svg>
         <div className="workspace-map-controls" aria-label="Mouse controls">
           {mouseControls.map(({ label, placement }) => <button className={`workspace-map-control workspace-map-control--${placement} ${activeControl === label ? 'is-active' : ''}`} type="button" key={label} aria-pressed={activeControl === label} title={deviceActions[label] ? `${label}: ${actionDescription(deviceActions[label])}` : `Configure ${label}`} onClick={() => openActionEditor(label)}>{label}</button>)}
         </div>
-      </> : <img className="workspace-keyboard-art" src="/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp" alt={`${name} control map`} />}
+      </> : <img className="workspace-keyboard-art" src={publicAsset('/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp')} alt={`${name} control map`} />}
     </div>
     <div className={`workspace-battery workspace-battery--${batteryColor(battery.level)} ${battery.charging ? 'is-charging' : ''} ${battery.level === null ? 'is-unavailable' : ''}`} aria-label={batteryStatus} title={batteryStatus}>
       <span className="workspace-battery-icon" aria-hidden="true" style={{ '--battery-level': (battery.level ?? 0) / 100 }}>
@@ -1341,8 +1345,8 @@ function App() {
       <div className="grid-lines" />
       <DotGridCanvas pointerRef={dotGridPointerRef} />
       <nav className="relative z-20 flex items-start justify-between px-6 lg:px-10" aria-label="Main navigation">
-        <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src="/Profile.png" alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
-        <div className="hub-actions relative"><button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src="/B%C3%A1nh%20r%C4%83ng%20icon.png" alt="" /></button><button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src="/icon%20personal.png" alt="" /></button>{settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}{userMenuOpen && <div className="top-menu user-menu"><strong>{isSignedIn ? 'Signed in' : 'Guest session'}</strong>{!isSignedIn && <><button type="button" onClick={() => { setAuthMode('login'); setAuthFormOpen(true) }}>Login</button><button type="button" onClick={() => { setAuthMode('signup'); setAuthFormOpen(true) }}>Sign up</button>{authFormOpen && <div className="auth-form-panel"><div className="auth-form-header"><span>{authMode === 'signup' ? 'Create account' : 'Login'}</span></div><label className="auth-field"><span>Email</span><input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="name@example.com" /></label><label className="auth-field"><span>Password</span><input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" /></label>{authFeedback && <small className="auth-feedback">{authFeedback}</small>}<div className="auth-form-actions"><button type="button" onClick={() => void signIn(authMode)}>{authMode === 'signup' ? 'Create account' : 'Login'}</button><button type="button" className="auth-cancel" onClick={() => { setAuthFormOpen(false); setAuthFeedback('') }}>Cancel</button></div></div>}</>}{isSignedIn && <button type="button" onClick={() => void signOut()}>Logout</button>}</div>}</div>
+        <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
+        <div className="hub-actions relative"><button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button><button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>{settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}{userMenuOpen && <div className="top-menu user-menu"><strong>{isSignedIn ? 'Signed in' : 'Guest session'}</strong>{!isSignedIn && <><button type="button" onClick={() => { setAuthMode('login'); setAuthFormOpen(true) }}>Login</button><button type="button" onClick={() => { setAuthMode('signup'); setAuthFormOpen(true) }}>Sign up</button>{authFormOpen && <div className="auth-form-panel"><div className="auth-form-header"><span>{authMode === 'signup' ? 'Create account' : 'Login'}</span></div><label className="auth-field"><span>Email</span><input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="name@example.com" /></label><label className="auth-field"><span>Password</span><input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" /></label>{authFeedback && <small className="auth-feedback">{authFeedback}</small>}<div className="auth-form-actions"><button type="button" onClick={() => void signIn(authMode)}>{authMode === 'signup' ? 'Create account' : 'Login'}</button><button type="button" className="auth-cancel" onClick={() => { setAuthFormOpen(false); setAuthFeedback('') }}>Cancel</button></div></div>}</>}{isSignedIn && <button type="button" onClick={() => void signOut()}>Logout</button>}</div>}</div>
       </nav>
 
       {displayDevices.length > 0 && !deviceHubOpen && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
