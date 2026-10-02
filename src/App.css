@@ -1299,6 +1299,137 @@
   margin: 0;
 }
 
+.admin-portal-trigger {
+  position: absolute;
+  top: 82px;
+  right: 28px;
+  z-index: 25;
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: 999px;
+  background: rgba(7, 14, 18, 0.86);
+  color: #d1fae5;
+  padding: 9px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-dashboard {
+  width: min(1100px, calc(100vw - 48px));
+  margin: 36px auto;
+  color: #f4f1f8;
+}
+
+.admin-dashboard-header,
+.admin-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-dashboard-header {
+  margin-bottom: 24px;
+}
+
+.admin-dashboard-header h1,
+.admin-panel-heading h2 {
+  margin: 0;
+  color: #fff;
+}
+
+.admin-dashboard-header h1 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.admin-dashboard-header p:not(.ai-recommendation-kicker) {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.admin-back-button,
+.admin-save-button {
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #d1fae5;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.admin-account-panel {
+  padding: 22px;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 18px;
+  background: rgba(7, 14, 18, 0.84);
+}
+
+.admin-panel-heading {
+  margin-bottom: 18px;
+}
+
+.admin-account-count,
+.admin-self-role-note {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-account-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-account-table th,
+.admin-account-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-account-table th {
+  color: #6ee7b7;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-account-table td {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.admin-account-table select {
+  min-width: 110px;
+  border: 1px solid rgba(110, 231, 183, 0.24);
+  border-radius: 8px;
+  background: #10171a;
+  color: #f4f1f8;
+  padding: 8px 10px;
+}
+
+.admin-self-role-note {
+  display: block;
+  margin-top: 4px;
+}
+
+.admin-save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-state-message {
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.5;
+}
+
+.admin-state-message.is-error {
+  color: #fca5a5;
+}
+
 @media (max-width: 820px) {
   .dashboard-layout {
     grid-template-columns: 1fr;
@@ -1308,6 +1439,11 @@
   .product-lab-toggle {
     right: 18px;
     top: 78px;
+  }
+
+  .admin-portal-trigger {
+    top: 72px;
+    right: 14px;
   }
 
   .product-lab-panel {
@@ -1326,6 +1462,11 @@
   .innovation-hub-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .ai-selected-detail {

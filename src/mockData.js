@@ -113,9 +113,9 @@ export const supabaseSchema = {
   database: 'LOKI',
   tables: [
     {
-      name: 'users',
-      columns: ['id uuid primary key', 'email text unique', 'display_name text', 'created_at timestamptz'],
-      purpose: 'Store authenticated gamer accounts.',
+      name: 'app_users',
+      columns: ['id uuid references auth.users', 'email text unique', 'display_name text', 'role user/admin', 'created_at timestamptz'],
+      purpose: 'Store account display data and enforce separate gamer/admin access.',
     },
     {
       name: 'devices',

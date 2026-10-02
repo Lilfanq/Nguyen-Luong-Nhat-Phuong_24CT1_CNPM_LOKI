@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { aiRecommendations } from './mockData'
 import { supabase } from './supabaseClient'
 import { createProfileName, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, persistProfiles, saveActiveProfile, saveProfilesToSupabase } from './profileService'
+import { ADMIN_ROLE, getAccountRole } from './features/auth/authService'
+import AuthFormPanel from './features/auth/AuthFormPanel'
+import AuthenticatedSessionPanel from './features/auth/AuthenticatedSessionPanel'
+import GuestSessionPanel from './features/auth/GuestSessionPanel'
+import AdminDashboard from './features/admin/AdminDashboard'
 import DeviceCatalogPanel from './features/devices/DeviceCatalogPanel'
 import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/InsightPanels'
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
@@ -730,11 +735,17 @@ function App() {
   const sessionDeviceKeysRef = useRef(new Set())
   const scanRevisionRef = useRef(0)
   const [isSignedIn, setIsSignedIn] = useState(() => localStorage.getItem('loki-authenticated') === 'true')
+  const [authUserId, setAuthUserId] = useState(null)
+  const [userRole, setUserRole] = useState('guest')
+  const [adminView, setAdminView] = useState(false)
+  const isAdmin = isSignedIn && userRole === ADMIN_ROLE
   const profileStorage = isSignedIn ? localStorage : sessionStorage
   const profileStorageKeys = getStorageKeys(isSignedIn)
   const [profiles, setProfiles] = useState(() => getStoredProfiles(profileStorage, profileStorageKeys.profiles))
   const [activeProfile, setActiveProfile] = useState(() => profileStorage.getItem(profileStorageKeys.activeProfile) || 'Default_profile0')
   const [deviceHistory, setDeviceHistory] = useState(() => getStoredJson(profileStorage, profileStorageKeys.history, {}))
+  const [authFeedback, setAuthFeedback] = useState('')
+  const [authUserEmail, setAuthUserEmail] = useState('')
 
   useEffect(() => {
     const loadRemoteProfiles = async () => {
@@ -748,6 +759,49 @@ function App() {
 
     void loadRemoteProfiles()
   }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const restoreSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        const user = data.session?.user
+        if (!active) return
+
+        if (error || !user) {
+          setIsSignedIn(false)
+          setAuthUserId(null)
+          setAuthUserEmail('')
+          setUserRole('guest')
+          localStorage.removeItem('loki-authenticated')
+          return
+        }
+
+        const { role, error: roleError } = await getAccountRole(supabase, user.id)
+        if (!active) return
+
+        setIsSignedIn(true)
+        setAuthUserId(user.id)
+        setAuthUserEmail(user.email || '')
+        setUserRole(role)
+        localStorage.setItem('loki-authenticated', 'true')
+        if (roleError) setAuthFeedback('Role setup is unavailable. This account has standard user access.')
+      } catch {
+        if (active) {
+          setIsSignedIn(false)
+          setAuthUserId(null)
+          setAuthUserEmail('')
+          setUserRole('guest')
+          localStorage.removeItem('loki-authenticated')
+        }
+      }
+    }
+
+    void restoreSession()
+    return () => { active = false }
+  }, [])
+
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -755,7 +809,6 @@ function App() {
   const [authFormOpen, setAuthFormOpen] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
-  const [authFeedback, setAuthFeedback] = useState('')
   const [deviceName, setDeviceName] = useState('No device selected')
   const [connectionMessage, setConnectionMessage] = useState('Ready to pair with your hardware')
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -982,6 +1035,17 @@ function App() {
         : await supabase.auth.signInWithPassword({ email: trimmedEmail, password: trimmedPassword })
 
       if (result.error) throw result.error
+      if (mode === 'signup' && !result.data.session) {
+        setAuthEmail('')
+        setAuthPassword('')
+        setAuthFormOpen(false)
+        setAuthFeedback('Account created. Check your email, then sign in to continue.')
+        return
+      }
+
+      const signedInUser = result.data.user
+      if (!signedInUser) throw new Error('Authentication did not return a user account.')
+      const { role, error: roleError } = await getAccountRole(supabase, signedInUser.id)
 
       const savedProfiles = getStoredJson(localStorage, 'loki-profiles', [])
       const nextProfiles = [...new Set([...savedProfiles, ...profiles])]
@@ -998,10 +1062,16 @@ function App() {
       setProfiles(nextProfiles)
       setDeviceHistory(nextHistory)
       setIsSignedIn(true)
+      setAuthUserId(signedInUser.id)
+      setAuthUserEmail(signedInUser.email || trimmedEmail)
+      setUserRole(role)
+      setAdminView(false)
       setAuthEmail('')
       setAuthPassword('')
       setAuthFormOpen(false)
-      setAuthFeedback(mode === 'signup' ? 'Account created. You can now sync profiles.' : 'Signed in successfully.')
+      setAuthFeedback(roleError
+        ? 'Signed in with standard user access. Apply supabase/admin_roles.sql to enable role management.'
+        : mode === 'signup' ? 'Account created. You can now sync profiles.' : 'Signed in successfully.')
       void saveProfilesToSupabase(supabase, nextProfiles, activeProfile)
       if (devices.length > 0) {
         const historyWithDevices = { ...nextHistory, [activeProfile]: [...(nextHistory[activeProfile] || []), ...devices.map(deviceHistoryEntry)].filter((entry, index, entries) => entries.findIndex((item) => deviceKey(item) === deviceKey(entry)) === index) }
@@ -1022,6 +1092,10 @@ function App() {
     localStorage.removeItem('loki-authenticated')
     if (supabase?.auth?.signOut) await supabase.auth.signOut()
     setIsSignedIn(false)
+    setAuthUserId(null)
+    setAuthUserEmail('')
+    setUserRole('guest')
+    setAdminView(false)
     setUserMenuOpen(false)
     setAuthFormOpen(false)
   }
@@ -1078,12 +1152,23 @@ function App() {
       <DotGridCanvas pointerRef={dotGridPointerRef} />
       <nav className="relative z-20 flex items-start justify-between px-6 lg:px-10" aria-label="Main navigation">
         <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
-        <div className="hub-actions relative"><button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button><button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>{settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}{userMenuOpen && <div className="top-menu user-menu"><strong>{isSignedIn ? 'Signed in' : 'Guest session'}</strong>{!isSignedIn && <><button type="button" onClick={() => { setAuthMode('login'); setAuthFormOpen(true) }}>Login</button><button type="button" onClick={() => { setAuthMode('signup'); setAuthFormOpen(true) }}>Sign up</button>{authFormOpen && <div className="auth-form-panel"><div className="auth-form-header"><span>{authMode === 'signup' ? 'Create account' : 'Login'}</span></div><label className="auth-field"><span>Email</span><input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="name@example.com" /></label><label className="auth-field"><span>Password</span><input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" /></label>{authFeedback && <small className="auth-feedback">{authFeedback}</small>}<div className="auth-form-actions"><button type="button" onClick={() => void signIn(authMode)}>{authMode === 'signup' ? 'Create account' : 'Login'}</button><button type="button" className="auth-cancel" onClick={() => { setAuthFormOpen(false); setAuthFeedback('') }}>Cancel</button></div></div>}</>}{isSignedIn && <button type="button" onClick={() => void signOut()}>Logout</button>}</div>}</div>
+        <div className="hub-actions relative">
+          <button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button>
+          <button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>
+          {settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}
+          {userMenuOpen && <div className="top-menu user-menu">
+            {isSignedIn ? <AuthenticatedSessionPanel email={authUserEmail} role={userRole} isAdminView={adminView} onToggleAdmin={() => setAdminView((current) => !current)} onSignOut={() => void signOut()} /> : <>
+              <GuestSessionPanel onLogin={() => { setAuthMode('login'); setAuthFormOpen(true) }} onSignup={() => { setAuthMode('signup'); setAuthFormOpen(true) }} />
+              {authFormOpen && <AuthFormPanel mode={authMode} email={authEmail} password={authPassword} feedback={authFeedback} onEmailChange={setAuthEmail} onPasswordChange={setAuthPassword} onSubmit={() => void signIn(authMode)} onCancel={() => { setAuthFormOpen(false); setAuthFeedback('') }} />}
+            </>}
+          </div>}
+        </div>
       </nav>
 
-      {displayDevices.length > 0 && !deviceHubOpen && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
+      {displayDevices.length > 0 && !deviceHubOpen && !adminView && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
+        {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
         {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={deviceKey(selectedDevice)} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
@@ -1122,13 +1207,14 @@ function App() {
             </div>
           </div>
         )}
+        </>}
       </section>
 
-      <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />
+      {!adminView && <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />}
 
-        {!deviceHubOpen && <button className="glass-panel fixed bottom-6 right-6 z-20 flex items-center gap-3 px-4 py-3 text-left text-sm text-white shadow-2xl shadow-emerald-950/50 transition hover:-translate-y-1 hover:border-emerald-400 sm:bottom-8 sm:right-10" type="button" onClick={() => setAssistantOpen(true)}><span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-lg text-[#09110d]">✦</span><span><b className="block text-emerald-300">Ask LOKI</b><small className="text-xs text-zinc-500">AI assistant ready</small></span></button>}
+        {!deviceHubOpen && !adminView && <button className="glass-panel fixed bottom-6 right-6 z-20 flex items-center gap-3 px-4 py-3 text-left text-sm text-white shadow-2xl shadow-emerald-950/50 transition hover:-translate-y-1 hover:border-emerald-400 sm:bottom-8 sm:right-10" type="button" onClick={() => setAssistantOpen(true)}><span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-lg text-[#09110d]">✦</span><span><b className="block text-emerald-300">Ask LOKI</b><small className="text-xs text-zinc-500">AI assistant ready</small></span></button>}
 
-        {assistantOpen && !deviceHubOpen && <aside className="glass-panel fixed bottom-24 right-6 z-30 flex w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden shadow-2xl shadow-black/50 sm:right-10" aria-label="LOKI AI Assistant">
+        {assistantOpen && !deviceHubOpen && !adminView && <aside className="glass-panel fixed bottom-24 right-6 z-30 flex w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden shadow-2xl shadow-black/50 sm:right-10" aria-label="LOKI AI Assistant">
           <div className="flex items-center justify-between border-b border-emerald-500/20 px-4 py-3"><div><p className="text-xs uppercase tracking-[.2em] text-emerald-300">LOKI AI</p><p className="text-xs text-zinc-500">{connected ? `Connected to ${deviceName}` : 'Hardware assistant'}</p></div><button className="text-xl text-zinc-500 hover:text-white" type="button" onClick={() => setAssistantOpen(false)} aria-label="Close assistant">×</button></div>
           <div className="flex max-h-64 flex-col gap-3 overflow-y-auto p-4 text-sm">{messages.map((message, index) => <div className={`max-w-[85%] px-3 py-2 ${message.from === 'user' ? 'self-end bg-emerald-400 text-[#09110d]' : 'self-start bg-white/5 text-zinc-300'}`} key={`${message.from}-${index}`}>{message.text}</div>)}</div>
           <form className="flex gap-2 border-t border-emerald-500/20 p-3" onSubmit={sendQuestion}><input className="min-w-0 flex-1 border border-emerald-500/20 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-400" type="text" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about your rig..." aria-label="Ask LOKI a question" /><button className="bg-emerald-400 px-3 text-sm font-bold text-[#09110d] hover:bg-emerald-300" type="submit" aria-label="Send question">↗</button></form>
