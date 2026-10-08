@@ -1,0 +1,4 @@
+project_id = "ynccytvbcsfutwstwmjr"
+
+[functions.loki-chat]
+verify_jwt = true

@@ -13,6 +13,7 @@ import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
 import { ProfileControlCenter, SavedProfilesPanel } from './features/profiles/ProfilePanels'
 import DragonMascot from './LokiDragon'
+import { requestAssistantReply, validateAssistantAction, ASSISTANT_PROFILE_ACTIONS } from './features/assistant/assistantService'
 import './App.css'
 
 function publicAsset(path) {
@@ -816,10 +817,12 @@ function App() {
   const [connectionMessage, setConnectionMessage] = useState('Ready to pair with your hardware')
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [question, setQuestion] = useState('')
+  const [assistantBusy, setAssistantBusy] = useState(false)
+  const [actionsVersion, setActionsVersion] = useState(0)
   const [selectedRecommendation, setSelectedRecommendation] = useState('fps-pro-setup')
   const [profilePreview, setProfilePreview] = useState(null)
   const [messages, setMessages] = useState([
-    { from: 'ai', text: 'Hey. I am ready to help you tune your rig.' },
+    { from: 'ai', local: true, text: 'Hi, I am LOKI. Ask me about your setup, or tell me what to change: switch profiles, remap mouse buttons, or set DPI stages.' },
   ])
 
   useEffect(() => {
@@ -1000,33 +1003,137 @@ function App() {
     }
   }
 
-  const sendQuestion = (event) => {
-    event.preventDefault()
-    const trimmedQuestion = question.trim()
-    if (!trimmedQuestion) return
+  const assistantTargetDevice = () => selectedDeviceRef.current || devices[0] || null
 
-    const normalizedQuestion = trimmedQuestion.toLowerCase()
-    const recommendation = aiRecommendations.find(({ title, game, profileName }) => {
-      const terms = `${title} ${game} ${profileName}`.toLowerCase().split(/[\s/]+/).filter((term) => term.length > 2)
-      return terms.some((term) => normalizedQuestion.includes(term))
-    })
-    const asksToApply = /\b(apply|activate|switch|use|set)\b|áp dụng|chuyển|đổi profile|dùng profile/i.test(trimmedQuestion)
-    let reply
+  const buttonActionStore = () => ({
+    storage: isSignedIn ? localStorage : sessionStorage,
+    name: isSignedIn ? 'loki-button-actions' : 'loki-temporary-button-actions',
+  })
 
-    if (asksToApply && recommendation) {
-      applyRecommendationProfile(recommendation.profileName)
-      reply = `${recommendation.title} is now selected in LOKI. This changes the app profile only; this build does not write DPI or polling values to the physical device.`
-    } else if (/battery|pin|dpi|sensitivity|polling|độ nhạy|tần số|chuột/i.test(trimmedQuestion)) {
-      const activeRecommendation = aiRecommendations.find((item) => item.profileName === activeProfile) || recommendation || aiRecommendations[0]
-      reply = `${activeRecommendation.title} recommends ${activeRecommendation.details.dpi} DPI and ${activeRecommendation.details.polling} Hz for ${activeRecommendation.details.recommendedFor}. ${connected ? `Selected device: ${deviceName}.` : 'Connect a device to inspect its status.'} I can select an app profile, but physical device settings need a supported HID write protocol.`
-    } else if (recommendation) {
-      reply = `${recommendation.title} is aimed at ${recommendation.details.recommendedFor}. It suggests ${recommendation.details.dpi} DPI, ${recommendation.details.polling} Hz polling, and ${recommendation.details.liftOff} lift-off distance.`
-    } else {
-      reply = `I can compare FPS, MOBA, and productivity profiles, or select one in LOKI. Tell me your game or the setting you want to tune. Physical hardware changes are not available until a device write protocol is connected.`
+  const assistantRules = (currentProfiles) => {
+    const device = assistantTargetDevice()
+    const deviceLabel = (device?.productName || '').toLowerCase()
+    return {
+      hasMouse: Boolean(device) && (deviceLabel.includes('mouse') || deviceLabel.includes('viper')),
+      controls: mouseControls.map(({ label }) => label),
+      categories: Object.fromEntries(actionCategories.map(({ id, label }) => [id, label])),
+      actionOptions,
+      profiles: currentProfiles,
+      recommendations: aiRecommendations,
+    }
+  }
+
+  const buildAssistantContext = () => {
+    const device = assistantTargetDevice()
+    const { storage, name } = buttonActionStore()
+    const stored = getStoredJson(storage, name, {})
+    const assignments = device ? stored[`${deviceKey(device)}::${activeProfile}`] || {} : {}
+    const rules = assistantRules(profiles)
+
+    return {
+      activeProfile,
+      profiles,
+      signedIn: isSignedIn,
+      device: device ? { name: device.productName || 'Unnamed HID device', connected: connected } : null,
+      canConfigureMouseButtons: rules.hasMouse,
+      buttonAssignments: assignments,
+      recommendedProfiles: aiRecommendations.map(({ id, title, game, profileName, summary, details }) => ({ id, title, game, profileName, summary, ...details })),
+      rules: {
+        controls: rules.controls,
+        actionCategories: rules.categories,
+        options: actionOptions,
+        profileActions: ASSISTANT_PROFILE_ACTIONS,
+        dpiRange: [100, 50000],
+        maxDpiStages: 8,
+      },
+    }
+  }
+
+  const runAssistantActions = (requestedActions) => {
+    const device = assistantTargetDevice()
+    const { storage, name: storeName } = buttonActionStore()
+    let currentProfiles = profiles
+    let currentProfile = activeProfile
+    let storedActions = getStoredJson(storage, storeName, {})
+    let profilesChanged = false
+    let activeChanged = false
+    let buttonsChanged = false
+    let recommendationId = null
+    const outcomes = []
+
+    for (const requested of requestedActions) {
+      const checked = validateAssistantAction(requested, assistantRules(currentProfiles))
+      if (!checked.ok) {
+        outcomes.push({ ok: false, text: checked.error })
+        continue
+      }
+
+      if (checked.kind === 'switch') {
+        const nextProfiles = ensureProfile(checked.profile, currentProfiles)
+        profilesChanged = profilesChanged || nextProfiles.length !== currentProfiles.length
+        currentProfiles = nextProfiles
+        currentProfile = checked.profile
+        activeChanged = true
+        recommendationId = checked.recommendationId || recommendationId
+        outcomes.push({ ok: true, text: `Active profile: ${checked.profile}` })
+      } else if (checked.kind === 'create') {
+        const nextName = checked.name || createProfileName(currentProfiles)
+        currentProfiles = [...currentProfiles, nextName]
+        currentProfile = nextName
+        profilesChanged = true
+        activeChanged = true
+        outcomes.push({ ok: true, text: `Created profile: ${nextName}` })
+      } else if (checked.kind === 'button') {
+        const key = `${deviceKey(device)}::${currentProfile}`
+        const legacy = currentProfile === (currentProfiles[0] || 'Default_profile0') ? storedActions[deviceKey(device)] || {} : {}
+        storedActions = { ...storedActions, [key]: { ...(storedActions[key] || legacy), [checked.control]: checked.action } }
+        buttonsChanged = true
+        outcomes.push({ ok: true, text: `${checked.control}: ${actionDescription(checked.action)}` })
+      }
     }
 
-    setMessages((current) => [...current, { from: 'user', text: trimmedQuestion }, { from: 'ai', text: reply }])
+    if (profilesChanged) {
+      setProfiles(currentProfiles)
+      persistProfiles(profileStorage, profileStorageKeys.profiles, currentProfiles)
+    }
+    if (activeChanged) {
+      setActiveProfile(currentProfile)
+      saveActiveProfile(profileStorage, profileStorageKeys.activeProfile, currentProfile)
+      if (recommendationId) setSelectedRecommendation(recommendationId)
+    }
+    if (profilesChanged || activeChanged) void saveProfilesToSupabase(supabase, currentProfiles, currentProfile)
+    if (buttonsChanged) {
+      storage.setItem(storeName, JSON.stringify(storedActions))
+      setActionsVersion((version) => version + 1)
+    }
+
+    return outcomes
+  }
+
+  const sendQuestion = async (event) => {
+    event.preventDefault()
+    const text = question.trim()
+    if (!text || assistantBusy) return
+
+    const history = [...messages.filter((message) => !message.local), { from: 'user', text }]
+    setMessages((current) => [...current, { from: 'user', text }])
     setQuestion('')
+    setAssistantBusy(true)
+
+    try {
+      const result = await requestAssistantReply(
+        supabase,
+        history.map((message) => ({ role: message.from === 'user' ? 'user' : 'assistant', content: message.text })),
+        buildAssistantContext(),
+      )
+      const outcomes = runAssistantActions(result.actions)
+      const lines = [result.reply, ...outcomes.map(({ ok, text: line }) => `${ok ? 'Done' : 'Skipped'}: ${line}`)].filter(Boolean)
+      setMessages((current) => [...current, { from: 'ai', text: lines.join('\n') || 'I could not produce an answer. Please rephrase.' }])
+    } catch (error) {
+      setMessages((current) => [...current, { from: 'ai', local: true, text: error.message }])
+    } finally {
+      setAssistantBusy(false)
+    }
   }
 
   const addProfile = () => {
@@ -1207,7 +1314,7 @@ function App() {
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
-        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={deviceKey(selectedDevice)} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
+        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
@@ -1257,13 +1364,13 @@ function App() {
       {assistantOpen && <aside className="loki-assistant-panel" aria-label="LOKI hardware assistant">
         <header className="loki-assistant-header">
           <DragonMascot idPrefix="chat" />
-          <div><p>LOKI / HARDWARE GUIDE</p><span>{connected ? `Connected · ${deviceName}` : 'Local profile advisor'}</span></div>
+          <div><p>LOKI / HARDWARE GUIDE</p><span>{connected ? `Connected · ${deviceName}` : 'AI assistant'}</span></div>
           <button type="button" onClick={() => setAssistantOpen(false)} aria-label="Close assistant" title="Close assistant">×</button>
         </header>
-        <div className="loki-assistant-messages" aria-live="polite">{messages.map((message, index) => <div className={`loki-assistant-message ${message.from === 'user' ? 'is-user' : 'is-assistant'}`} key={`${message.from}-${index}`}>{message.text}</div>)}</div>
+        <div className="loki-assistant-messages" aria-live="polite">{messages.map((message, index) => <div className={`loki-assistant-message ${message.from === 'user' ? 'is-user' : 'is-assistant'}`} key={`${message.from}-${index}`}>{message.text}</div>)}{assistantBusy && <div className="loki-assistant-message is-assistant is-pending" role="status">LOKI is thinking...</div>}</div>
         <form className="loki-assistant-form" onSubmit={sendQuestion}>
-          <input type="text" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about DPI, profiles, or setup..." aria-label="Ask LOKI about your device" />
-          <button type="submit" aria-label="Send message" title="Send message">↗</button>
+          <input type="text" value={question} maxLength={1000} disabled={assistantBusy} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask LOKI or tell it what to change..." aria-label="Ask LOKI about your device" />
+          <button type="submit" disabled={assistantBusy || !question.trim()} aria-label="Send message" title="Send message">↗</button>
         </form>
       </aside>}
       <button className="dragon-launcher" type="button" onClick={() => setAssistantOpen((open) => !open)} aria-label={assistantOpen ? 'Close Ask LOKI assistant' : 'Open Ask LOKI assistant'} aria-expanded={assistantOpen}>
