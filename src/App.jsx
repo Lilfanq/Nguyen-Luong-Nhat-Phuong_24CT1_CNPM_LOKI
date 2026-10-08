@@ -434,6 +434,8 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
   useEffect(() => {
     let cancelled = false
     let isReadingFeatureReports = false
+    let hasBatteryData = false
+    let pollTimeoutId = null
     const inputReports = collectBatteryReports(device.collections, 'inputReports')
     const featureReports = collectBatteryReports(device.collections, 'featureReports')
     const hasRazerBatteryProtocol = supportsRazerBatteryProtocol(device)
@@ -442,6 +444,7 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
     const applyReport = (report, data) => {
       const nextBattery = parseBatteryReport(report, data)
       if (Object.keys(nextBattery).length > 0 && !cancelled) {
+        hasBatteryData = true
         setBattery((current) => ({ ...current, ...nextBattery, supported: true }))
       }
     }
@@ -471,6 +474,7 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
         if (hasRazerBatteryProtocol && device.sendFeatureReport && device.receiveFeatureReport) {
           const nextBattery = await readRazerBattery(device)
           if (Object.keys(nextBattery).length > 0 && !cancelled) {
+            hasBatteryData = true
             setBattery((current) => ({ ...current, ...nextBattery, supported: true }))
           }
         }
@@ -479,13 +483,21 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
       }
     }
 
-    void scanBattery()
-    const pollId = featureReports.length > 0 || hasRazerBatteryProtocol ? window.setInterval(() => void scanBattery(), 30000) : null
+    const canPoll = featureReports.length > 0 || hasRazerBatteryProtocol
+    const scheduleNextScan = () => {
+      if (cancelled || !canPoll) return
+      pollTimeoutId = window.setTimeout(async () => {
+        await scanBattery()
+        scheduleNextScan()
+      }, hasBatteryData ? 30000 : 4000)
+    }
+
+    void scanBattery().finally(scheduleNextScan)
 
     return () => {
       cancelled = true
       device.removeEventListener?.('inputreport', handleInputReport)
-      if (pollId !== null) window.clearInterval(pollId)
+      if (pollTimeoutId !== null) window.clearTimeout(pollTimeoutId)
     }
   }, [device])
 
@@ -733,6 +745,7 @@ function App() {
   const [sessionDevices, setSessionDevices] = useState([])
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [deviceHubOpen, setDeviceHubOpen] = useState(false)
+  const [deviceConnectionRevision, setDeviceConnectionRevision] = useState(0)
   const selectedDeviceRef = useRef(null)
   const dotGridPointerRef = useRef({ x: 0, y: 0, velocityX: 0, velocityY: 0, time: 0, reversing: false, active: false })
   const sessionDeviceKeysRef = useRef(new Set())
@@ -892,6 +905,11 @@ function App() {
 
       try {
         if (!device.opened) await device.open()
+        setDeviceConnectionRevision((revision) => revision + 1)
+        if (selectedDeviceRef.current && deviceKey(selectedDeviceRef.current) === deviceKey(device)) {
+          selectedDeviceRef.current = device
+          setSelectedDevice(device)
+        }
         refreshSessionKeys([device])
         devicesRef.current = uniqueDevices([...devicesRef.current, device])
         setDevices(devicesRef.current)
@@ -909,6 +927,7 @@ function App() {
 
     const handleDisconnect = (event) => {
       const disconnectedKey = deviceKey(event.device)
+      setDeviceConnectionRevision((revision) => revision + 1)
       const remainingDevices = devicesRef.current.filter((device) => deviceKey(device) !== disconnectedKey)
       devicesRef.current = remainingDevices
       setDevices(remainingDevices)
@@ -966,6 +985,7 @@ function App() {
       const visibleDevices = append ? uniqueDevices([...devices, ...connectedDevices]) : connectedDevices
       refreshSessionKeys(visibleDevices)
       devicesRef.current = visibleDevices
+      setDeviceConnectionRevision((revision) => revision + 1)
       const newlyConnectedDevice = connectedDevices[0]
       const currentSelection = selectedDeviceRef.current
       const device = append && currentSelection && !selectedDevices.some((selected) => deviceKey(selected) === deviceKey(currentSelection))
@@ -992,6 +1012,7 @@ function App() {
   const selectDevice = async (device) => {
     try {
       if (!device.opened) await device.open()
+      setDeviceConnectionRevision((revision) => revision + 1)
       selectedDeviceRef.current = device
       setSelectedDevice(device)
       setDeviceHubOpen(true)
@@ -1314,7 +1335,7 @@ function App() {
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
-        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
+        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
