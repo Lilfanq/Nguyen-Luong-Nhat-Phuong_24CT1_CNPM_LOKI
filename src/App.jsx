@@ -437,7 +437,7 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
       if (frame) window.cancelAnimationFrame(frame)
       frame = window.requestAnimationFrame(() => {
         const trackTop = workspaceTrackRef.current?.getBoundingClientRect().top ?? 78
-        const distance = Math.max(window.innerHeight * 0.2, 1)
+        const distance = Math.max(window.innerHeight * 4, 1)
         const progress = Math.min(1, Math.max(0, (78 - trackTop) / distance))
         if (Math.abs(lastReportedProgress - progress) > 0.012) {
           lastReportedProgress = progress
@@ -467,8 +467,8 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
 
   const scrollToSettings = () => workspaceSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   const suctionProgress = workspaceScrollProgress
-  const heroDissolve = Math.min(1, suctionProgress / 0.7)
-  const heroTilt = Math.sin(Math.PI * suctionProgress) * (suctionProgress < 0.5 ? -4 : 4)
+  const heroDissolve = Math.max(0, Math.min(1, (suctionProgress - 0.35) / 0.55))
+  const heroTilt = Math.sin(Math.PI * suctionProgress * 2) * 4
 
   const openActionEditor = (control) => {
     setActiveControl(control)
@@ -745,9 +745,9 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
       }
       const dotPaths = Array.from({ length: 8 }, () => new Path2D())
       const progress = workspaceProgressRef.current
-      const suction = progress <= 0.56
-        ? progress / 0.56
-        : 1 - (progress - 0.56) / 0.44
+      const suction = progress <= 0.9
+        ? progress / 0.9
+        : 1 - (progress - 0.9) / 0.1
       const vortexTravel = Math.max(0, Math.min(1, suction))
       const vortexCenterX = width / 2
       const vortexCenterY = height / 2
@@ -967,12 +967,13 @@ function App() {
     dotGridPointerRef.current.redraw?.()
     setWorkspaceSuctionProgress(progress)
   }, [])
-  const vortexPulse = Math.sin(Math.PI * workspaceSuctionProgress)
-  const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.56)
-  const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.56) / 0.44))
-  const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.2))
-    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.78) / 0.2)))
-  const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.74) / 0.26)))
+  const vortexPulse = Math.min(1, workspaceSuctionProgress / 0.14)
+    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.93) / 0.07)))
+  const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.9)
+  const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.9) / 0.1))
+  const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.16))
+    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.91) / 0.08)))
+  const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.9) / 0.1)))
   const dragonBodyOpacity = Math.max(dragonGrip, releaseGust * 0.9)
 
   useEffect(() => {
@@ -1551,16 +1552,23 @@ function App() {
       </div>
     </div>, document.body)}
     {createPortal(<div className="loki-assistant-dock">
-      {dragonBodyOpacity > 0 && <div className={`dragon-rescue-body ${releaseGust > 0.01 ? 'is-release-gust' : ''}`} style={{ opacity: dragonBodyOpacity, transform: `translate3d(${-112 * workspaceSuctionProgress + 84 * releaseGust}px, ${-54 * dragonGrip - 35 * releaseGust}px, 0) rotate(${-10 * dragonGrip + 14 * releaseGust}deg) scale(${1 - 0.28 * dragonGrip + 0.16 * releaseGust})` }} aria-hidden="true">
+      {dragonBodyOpacity > 0 && <div className={`dragon-rescue-body ${dragonGrip > 0.1 ? 'is-gripping' : ''} ${releaseGust > 0.01 ? 'is-release-gust' : ''}`} style={{ opacity: dragonBodyOpacity, transform: `translate3d(${84 * releaseGust}px, ${-30 * releaseGust}px, 0) rotate(${10 * releaseGust}deg)` }} aria-hidden="true">
         <svg viewBox="0 0 320 280">
           <defs><linearGradient id="rescue-dragon-scales" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#343443" /><stop offset="0.6" stopColor="#101018" /><stop offset="1" stopColor="#030307" /></linearGradient></defs>
-          <path d="M291 229c-31-12-51-34-57-64-7-34 10-64 31-86l-31-24c-44 34-66 80-55 127 8 39 35 70 76 91z" fill="url(#rescue-dragon-scales)" stroke="#4d4d61" strokeWidth="3" />
-          <path d="m244 78-17 7 24 9-23 10 27 8-22 10 27 2m13-66-14 8 23 7-22 9 25 6-20 13" fill="none" stroke="#69697d" strokeWidth="3" strokeLinejoin="miter" />
-          <path d="M250 166c-26 4-51 18-74 41-17 17-29 38-36 61 34-28 67-40 106-35 26 3 42-10 42-31 0-20-14-37-38-36z" fill="url(#rescue-dragon-scales)" stroke="#4d4d61" strokeWidth="3" />
-          <path d="M221 207c-41-12-79-7-119 19l-45 28 13 19 51-22c34-14 64-13 100-2l28-20z" fill="url(#rescue-dragon-scales)" stroke="#55556c" strokeWidth="3" />
-          <path d="M273 202c19-29 25-58 18-92l-7-34-21 4 1 38c0 28-9 50-29 73l11 27z" fill="url(#rescue-dragon-scales)" stroke="#55556c" strokeWidth="3" />
-          <path d="m63 253-20-7-4 8 16 7-12 9 23-1m197-156-4-22 9-2 6 18 10-13 1 24" fill="none" stroke="#e1e5e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="m53 257-14 13m25-15-8 18m201-173-1-18m10 16 7-17" fill="none" stroke="#101018" strokeWidth="4" strokeLinecap="round" />
+          <g className="dragon-rescue-torso" style={{ transform: `scaleY(${1 - 0.72 * suctionTravel})` }}>
+            <path d="M302 151C278 162 275 188 284 208c8 19 6 36-5 51-13 18-34 20-50 5-17-15-22-41-12-62" fill="none" stroke="#05050a" strokeWidth="51" strokeLinecap="round" />
+            <path d="M302 151C278 162 275 188 284 208c8 19 6 36-5 51-13 18-34 20-50 5-17-15-22-41-12-62" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="43" strokeLinecap="round" />
+            <path d="m294 172-17-6 17-8m-12 33-18-4 17-11m16 40-18-7 17-9m-28 36-18-2 15-13m25-36 16-4-10-12" fill="none" stroke="#626277" strokeWidth="3.5" strokeLinejoin="miter" />
+            <path d="M264 183c-12-11-17-25-14-41 10 9 20 10 34 4 2 17-4 28-20 37z" fill="#11111a" stroke="#69697d" strokeWidth="3" />
+          </g>
+          <g className="dragon-rescue-arms">
+            <path d="M286 187c-39-1-77 12-112 38l-29 24" fill="none" stroke="#05050a" strokeWidth="32" strokeLinecap="round" />
+            <path d="M286 187c-39-1-77 12-112 38l-29 24" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="25" strokeLinecap="round" />
+            <path d="M288 185c13 13 22 32 22 58l-4 16" fill="none" stroke="#05050a" strokeWidth="27" strokeLinecap="round" />
+            <path d="M288 185c13 13 22 32 22 58l-4 16" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="21" strokeLinecap="round" />
+            <path d="m152 247-18-7-7 9 18 6-12 9 24-2m148-8 10 11-5 9 16 3-2 9-22-3" fill="none" stroke="#e7eef1" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="m139 248-10 15m24-7-9 17m164-23 1 17m8-21 9 15" fill="none" stroke="#11111a" strokeWidth="4" strokeLinecap="round" />
+          </g>
         </svg>
       </div>}
       {assistantOpen && <aside className="loki-assistant-panel" aria-label="LOKI hardware assistant">
