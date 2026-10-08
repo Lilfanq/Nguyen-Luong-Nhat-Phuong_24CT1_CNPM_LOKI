@@ -805,6 +805,7 @@ function App() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [productLabOpen, setProductLabOpen] = useState(false)
   const [authMode, setAuthMode] = useState('login')
   const [authFormOpen, setAuthFormOpen] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
@@ -818,6 +819,17 @@ function App() {
   const [messages, setMessages] = useState([
     { from: 'ai', text: 'Hey. I am ready to help you tune your rig.' },
   ])
+
+  useEffect(() => {
+    if (!productLabOpen) return undefined
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setProductLabOpen(false)
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [productLabOpen])
 
   const reconcileSessionDevices = (currentEntries, connectedList) => {
     const nextMap = new Map((currentEntries || []).map((entry) => [deviceKey(entry.device), { device: entry.device, isConnected: false }]))
@@ -1154,6 +1166,7 @@ function App() {
         <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
         <div className="hub-actions relative">
           <button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button>
+          {!adminView && <button className="product-lab-launch" type="button" onClick={() => setProductLabOpen(true)} aria-label="Open Product Lab" aria-expanded={productLabOpen}>Product Lab</button>}
           <button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>
           {settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}
           {userMenuOpen && <div className="top-menu user-menu">
@@ -1167,12 +1180,12 @@ function App() {
 
       {displayDevices.length > 0 && !deviceHubOpen && !adminView && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
 
-      <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
+      <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
         {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={deviceKey(selectedDevice)} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
-          <div className="dashboard-layout">
+          <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
             <div className="dashboard-legacy-column">
               {displayDevices.length > 0 ? (
                 <div className="legacy-device-status">
@@ -1189,15 +1202,22 @@ function App() {
               )}
             </div>
 
-            <div className="innovation-hub" aria-label="LOKI product lab">
-              <div className="innovation-hub-header">
-                <div>
-                  <p className="ai-recommendation-kicker">PRODUCT LAB</p>
-                  <h2>AI + hardware control stack</h2>
-                </div>
-                <span className="innovation-hub-note">New features grouped here</span>
-              </div>
+          </div>
+        )}
+        </>}
+      </section>
 
+      {productLabOpen && !adminView && (
+        <div className="product-lab-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setProductLabOpen(false) }}>
+          <section className="product-lab-dialog" role="dialog" aria-modal="true" aria-label="LOKI Product Lab">
+            <header className="product-lab-dialog-header">
+              <div>
+                <p className="ai-recommendation-kicker">LOKI / PRODUCT LAB</p>
+                <h2>AI + hardware control stack</h2>
+              </div>
+              <button className="product-lab-dialog-close" type="button" onClick={() => setProductLabOpen(false)} aria-label="Close Product Lab" title="Close Product Lab">×</button>
+            </header>
+            <div className="product-lab-content">
               <AIRecommendationPanel activeProfile={activeProfile} selectedRecommendation={selectedRecommendation} onOpenPreview={setProfilePreview} onApplyRecommendation={applyRecommendationProfile} />
               <DeviceCatalogPanel />
               <ProfileControlCenter profileName={activeProfile} deviceCount={displayDevices.length} syncStatus={connected ? 'Synced' : 'Standby'} />
@@ -1205,10 +1225,9 @@ function App() {
               <SmartInsightsPanel />
               <AITroubleshootingPanel />
             </div>
-          </div>
-        )}
-        </>}
-      </section>
+          </section>
+        </div>
+      )}
 
       {!adminView && <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />}
 
