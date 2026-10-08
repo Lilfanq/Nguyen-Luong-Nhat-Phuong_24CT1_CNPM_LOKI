@@ -458,6 +458,8 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   }
 
   const scrollToSettings = () => workspaceSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const heroLift = Math.sin(Math.PI * workspaceScrollProgress)
+  const heroTilt = Math.sin(Math.PI * workspaceScrollProgress) * (workspaceScrollProgress < 0.5 ? -1.1 : 1.1)
 
   const openActionEditor = (control) => {
     setActiveControl(control)
@@ -582,9 +584,9 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   return <div className="workspace-scroll-shell">
     <div className="workspace-scroll-track" ref={workspaceTrackRef}>
       <section className="workspace-hero-sticky">
-        <div className="device-workspace workspace-hero-art" style={{ transform: `translate3d(0, ${-40 * workspaceScrollProgress}px, 0) scale(${1 - workspaceScrollProgress * 0.08})` }}>
-    <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
-    <div className="workspace-device-chip"><span>{deviceTitle}</span></div>
+        <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
+        <div className="workspace-device-chip"><span>{deviceTitle}</span></div>
+        <div className="device-workspace workspace-hero-art" style={{ transform: `translate3d(0, ${-76 * heroLift}px, 0) rotate(${heroTilt}deg) scale(${1 - 0.1 * heroLift})` }}>
     <div className={`workspace-map ${isMouse ? 'workspace-map-mouse' : 'workspace-map-keyboard'}`}>
       <span className="workspace-map-status" aria-hidden="true" />
       {isMouse ? <>

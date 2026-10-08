@@ -1438,6 +1438,30 @@
   transform-origin: center 58%;
 }
 
+.workspace-hero-sticky .workspace-back {
+  top: 18px;
+  left: clamp(14px, 4vw, 48px);
+  z-index: 12;
+}
+
+.workspace-hero-sticky .workspace-device-chip {
+  top: 16px;
+  left: 50%;
+  width: min(280px, calc(100vw - 220px));
+  min-height: 42px;
+  height: auto;
+  padding: 8px 16px;
+  border-top: 3px solid transparent;
+  border-radius: 0 0 6px 6px;
+  font-size: 0.72rem;
+  transform: translateX(-50%);
+  z-index: 12;
+}
+
+.workspace-hero-sticky .workspace-device-chip span {
+  max-width: 100%;
+}
+
 .workspace-scroll-cue {
   position: absolute;
   top: 22px;
@@ -1478,8 +1502,7 @@
   z-index: 2;
   scroll-margin-top: 18px;
   padding: 8px clamp(14px, 3vw, 40px) 96px;
-  background: linear-gradient(180deg, rgba(4, 9, 20, 0.12), rgba(4, 8, 15, 0.76) 15%, rgba(4, 8, 15, 0.9));
-  backdrop-filter: blur(2px);
+  background: transparent;
 }
 
 .device-settings {
@@ -1589,18 +1612,30 @@
 
 .device-settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 24px;
 }
 
 .device-setting-section {
   min-width: 0;
+  width: min(100%, 1120px);
+  margin-inline: auto;
   scroll-margin-top: 84px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
   background: linear-gradient(145deg, rgba(14, 19, 20, 0.95), rgba(7, 11, 15, 0.96));
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.23);
+  opacity: 0;
+  transform: translateY(48px) scale(0.94);
+  filter: blur(7px);
+  transition: opacity 620ms ease, transform 760ms cubic-bezier(0.2, 0.72, 0.2, 1), filter 620ms ease;
+}
+
+.device-setting-section.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .device-setting-section-header {
@@ -1774,7 +1809,6 @@
 }
 
 @media (max-width: 820px) {
-  .workspace-settings-grid { grid-template-columns: 1fr; }
   .device-settings-heading { align-items: flex-start; flex-direction: column; }
 }
 
@@ -1793,6 +1827,18 @@
   .device-setting-local-tag { padding: 5px 6px; font-size: 0.48rem; }
   .device-setting-section-body { padding: 0 12px; }
   .device-settings-footer { grid-template-columns: 1fr; gap: 7px; }
+  .workspace-hero-sticky .workspace-back { top: 12px; left: 10px; }
+  .workspace-hero-sticky .workspace-device-chip { top: 12px; width: min(190px, calc(100vw - 130px)); font-size: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-hero-art,
+  .device-setting-section,
+  .workspace-scroll-cue svg {
+    transition: none;
+    animation: none;
+    filter: none;
+  }
 }
 
 .loki-assistant-dock {

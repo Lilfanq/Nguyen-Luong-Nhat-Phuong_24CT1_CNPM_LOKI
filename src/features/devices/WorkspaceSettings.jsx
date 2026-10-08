@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_DEVICE_SETTINGS } from './deviceSettings'
 
 const POLLING_RATES = [125, 500, 1000, 2000, 4000, 8000]
@@ -5,7 +6,22 @@ const SENSITIVITY_PRESETS = ['Classic', 'Natural', 'Jump', 'Custom']
 const TRACKING_DISTANCES = ['Low', 'Medium', 'High']
 
 function SettingSection({ id, index, title, description, children }) {
-  return <section className="device-setting-section" id={id} aria-labelledby={`${id}-title`}>
+  const sectionRef = useRef(null)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return undefined
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsVisible(entry.isIntersecting)
+    }, { threshold: 0.12, rootMargin: '-8% 0px -8% 0px' })
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  return <section ref={sectionRef} className={`device-setting-section ${isVisible ? 'is-visible' : ''}`} id={id} aria-labelledby={`${id}-title`}>
     <header className="device-setting-section-header">
       <span className="device-setting-index">{index}</span>
       <div><p>DEVICE PROFILE</p><h2 id={`${id}-title`}>{title}</h2><span>{description}</span></div>
