@@ -9,6 +9,8 @@ import AuthenticatedSessionPanel from './features/auth/AuthenticatedSessionPanel
 import GuestSessionPanel from './features/auth/GuestSessionPanel'
 import AdminDashboard from './features/admin/AdminDashboard'
 import DeviceCatalogPanel from './features/devices/DeviceCatalogPanel'
+import WorkspaceSettings from './features/devices/WorkspaceSettings'
+import { DEFAULT_DEVICE_SETTINGS } from './features/devices/deviceSettings'
 import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/InsightPanels'
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
 import { ProfileControlCenter, SavedProfilesPanel } from './features/profiles/ProfilePanels'
@@ -397,6 +399,16 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   const [buttonListFilter, setButtonListFilter] = useState('all')
   const [actionDraft, setActionDraft] = useState(null)
   const [buttonActions, setButtonActions] = useState(() => getStoredJson(isSignedIn ? localStorage : sessionStorage, isSignedIn ? 'loki-button-actions' : 'loki-temporary-button-actions', {}))
+  const settingsStorage = isSignedIn ? localStorage : sessionStorage
+  const settingsStorageKey = 'loki-device-settings'
+  const deviceProfileSettingsKey = `${deviceKey(device)}::${activeProfile}`
+  const workspaceTrackRef = useRef(null)
+  const workspaceSettingsRef = useRef(null)
+  const [workspaceScrollProgress, setWorkspaceScrollProgress] = useState(0)
+  const [deviceSettings, setDeviceSettings] = useState(() => {
+    const allSettings = getStoredJson(settingsStorage, settingsStorageKey, {})
+    return { ...DEFAULT_DEVICE_SETTINGS, ...(allSettings[deviceProfileSettingsKey] || {}) }
+  })
   const [battery, setBattery] = useState(() => ({
     level: null,
     charging: null,
@@ -413,6 +425,39 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   const actionStorageName = isSignedIn ? 'loki-button-actions' : 'loki-temporary-button-actions'
   const legacyActions = activeProfile === (profiles[0] || 'Default_profile0') ? buttonActions[deviceKey(device)] || {} : {}
   const deviceActions = buttonActions[actionStorageKey] || legacyActions
+
+  useEffect(() => {
+    let frame = 0
+    const updateProgress = () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        const trackTop = workspaceTrackRef.current?.getBoundingClientRect().top ?? 78
+        const distance = Math.max(window.innerHeight * 0.42, 1)
+        const progress = Math.min(1, Math.max(0, (78 - trackTop) / distance))
+        setWorkspaceScrollProgress((current) => Math.abs(current - progress) > 0.015 ? progress : current)
+      })
+    }
+
+    window.addEventListener('scroll', updateProgress, { passive: true })
+    window.addEventListener('resize', updateProgress)
+    updateProgress()
+    return () => {
+      window.removeEventListener('scroll', updateProgress)
+      window.removeEventListener('resize', updateProgress)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  const updateDeviceSettings = (patch) => {
+    setDeviceSettings((current) => {
+      const nextSettings = { ...current, ...patch }
+      const allSettings = getStoredJson(settingsStorage, settingsStorageKey, {})
+      settingsStorage.setItem(settingsStorageKey, JSON.stringify({ ...allSettings, [deviceProfileSettingsKey]: nextSettings }))
+      return nextSettings
+    })
+  }
+
+  const scrollToSettings = () => workspaceSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const openActionEditor = (control) => {
     setActiveControl(control)
@@ -534,7 +579,10 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
     }
   }, [device, onDeviceRefresh])
 
-  return <div className="device-workspace">
+  return <div className="workspace-scroll-shell">
+    <div className="workspace-scroll-track" ref={workspaceTrackRef}>
+      <section className="workspace-hero-sticky">
+        <div className="device-workspace workspace-hero-art" style={{ transform: `translate3d(0, ${-40 * workspaceScrollProgress}px, 0) scale(${1 - workspaceScrollProgress * 0.08})` }}>
     <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
     <div className="workspace-device-chip"><span>{deviceTitle}</span></div>
     <div className={`workspace-map ${isMouse ? 'workspace-map-mouse' : 'workspace-map-keyboard'}`}>
@@ -549,17 +597,29 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
         </div>
       </> : <img className="workspace-keyboard-art" src={publicAsset('/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp')} alt={`${name} control map`} />}
     </div>
-    <div className={`workspace-battery workspace-battery--${batteryColor(battery.level)} ${battery.charging ? 'is-charging' : ''} ${battery.level === null ? 'is-unavailable' : ''}`} aria-label={batteryStatus} title={batteryStatus}>
+      </div>
+      <div className={`workspace-battery workspace-battery--${batteryColor(battery.level)} ${battery.charging ? 'is-charging' : ''} ${battery.level === null ? 'is-unavailable' : ''}`} aria-label={batteryStatus} title={batteryStatus}>
       <span className="workspace-battery-icon" aria-hidden="true" style={{ '--battery-level': (battery.level ?? 0) / 100 }}>
         <span className="workspace-battery-fill" />
         {battery.charging && <svg className="workspace-battery-charge" viewBox="0 0 16 22"><path d="M9.5 1 3 12h4.5L6.5 21 13 9.5H8.5z" /></svg>}
       </span>
       <span className="workspace-battery-value">{battery.level === null ? '--%' : `${battery.level}%`}</span>
     </div>
-    <div className="workspace-mode-control" role="group" aria-label="Device mode">
+      <div className="workspace-mode-control" role="group" aria-label="Device mode">
       <button className="workspace-mode-icon" type="button" aria-label="Open button assignments" aria-expanded={buttonListOpen} onClick={() => setButtonListOpen((open) => !open)}><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="3" width="22" height="22" rx="2" /><path d="M14 3v22M7 8h3v12H7z" /></svg></button>
       {['Standard', 'Hypershift'].map((option) => <button className={mode === option ? 'is-active' : ''} type="button" key={option} aria-pressed={mode === option} onClick={() => setMode(option)}>{option}</button>)}
     </div>
+        <button className="workspace-scroll-cue" type="button" onClick={scrollToSettings} aria-label="Scroll to device settings">
+          <span>Scroll to tune this device</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+      </section>
+    </div>
+
+    <section className="workspace-settings-anchor" ref={workspaceSettingsRef}>
+      <WorkspaceSettings settings={deviceSettings} onChange={updateDeviceSettings} deviceTitle={deviceTitle} activeProfile={activeProfile} batteryStatus={batteryStatus} />
+    </section>
+
     {buttonListOpen && <aside className="workspace-button-list" aria-label="Button assignments">
       <header className="workspace-button-list-header">
         <div><p>LOKI / INPUT MAP</p><h2>Button assignments</h2></div>
@@ -1385,7 +1445,7 @@ function App() {
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
-        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} onDeviceRefresh={refreshSelectedDevice} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
+        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}:${activeProfile}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} onDeviceRefresh={refreshSelectedDevice} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>

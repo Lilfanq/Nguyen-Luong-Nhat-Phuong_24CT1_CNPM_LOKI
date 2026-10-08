@@ -470,13 +470,12 @@ button { cursor: pointer; }
 }
 
 .device-workspace-page {
-  align-items: flex-start;
-  display: flex;
-  justify-content: center;
+  display: block;
   margin: 0;
   max-width: none;
-  min-height: calc(100svh - 78px);
-  padding: 56px 20px 92px;
+  min-height: 0;
+  overflow: visible;
+  padding: 0;
   position: relative;
   width: 100%;
   z-index: 10;
@@ -484,9 +483,9 @@ button { cursor: pointer; }
 
 .device-workspace {
   aspect-ratio: 692 / 496;
-  flex: 0 1 692px;
+  flex: 0 0 auto;
   position: relative;
-  width: min(692px, 100%);
+  width: min(692px, calc(100vw - 36px));
 }
 
 .workspace-map {
@@ -966,18 +965,18 @@ button { cursor: pointer; }
   background: rgba(13, 17, 28, .78);
   border: 1px solid rgba(255, 255, 255, .12);
   border-radius: 12px;
-  bottom: 16px;
+  bottom: 26px;
   color: #f5f7fa;
   display: flex;
   font-size: 16px;
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   gap: 8px;
-  left: 16px;
+  left: clamp(16px, 3vw, 36px);
   line-height: 1;
   padding: 9px 12px;
-  position: fixed;
-  z-index: 20;
+  position: absolute;
+  z-index: 5;
 }
 
 .workspace-battery--critical { --battery-color: #ff4545; }
@@ -1048,14 +1047,14 @@ button { cursor: pointer; }
   background: rgba(37, 91, 43, .82);
   border: 1px solid rgba(83, 235, 56, .12);
   border-radius: 13px;
-  bottom: 20px;
+  bottom: 22px;
   display: flex;
   gap: 5px;
   left: 50%;
   padding: 6px 8px;
-  position: fixed;
+  position: absolute;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: 5;
 }
 
 .workspace-mode-icon {

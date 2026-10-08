@@ -1,0 +1,15 @@
+export const DEFAULT_DEVICE_SETTINGS = {
+  sensitivityStagesEnabled: true,
+  dpiStages: [400, 800, 1600, 3200, 6400],
+  activeDpiStage: 1,
+  pollingRate: 1000,
+  smartPolling: false,
+  smartPollingRate: 1000,
+  sleepMinutes: 1,
+  lowPowerThreshold: 5,
+  asymmetricCutoff: false,
+  trackingDistance: 'Low',
+  dynamicSensitivity: false,
+  sensitivityPreset: 'Classic',
+  rotation: 0,
+}
