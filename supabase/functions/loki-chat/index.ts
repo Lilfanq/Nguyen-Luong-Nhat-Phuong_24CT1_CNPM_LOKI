@@ -132,13 +132,19 @@ Deno.serve(async (request) => {
   const fallbackModel = Deno.env.get('LLM_FALLBACK_MODEL')
   const models = [...new Set([model, fallbackModel].filter(Boolean))]
   const context = JSON.stringify(body?.context ?? {}).slice(0, MAX_CONTEXT_CHARS)
+  const requestHeaders = new Headers({ 'Content-Type': 'application/json' })
+  if (new URL(baseUrl).hostname === 'generativelanguage.googleapis.com') {
+    requestHeaders.set('x-goog-api-key', apiKey)
+  } else {
+    requestHeaders.set('Authorization', `Bearer ${apiKey}`)
+  }
 
   let upstream = null
   for (const [index, candidateModel] of models.entries()) {
     try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: requestHeaders,
         body: JSON.stringify({
           model: candidateModel,
           temperature: 0.4,
