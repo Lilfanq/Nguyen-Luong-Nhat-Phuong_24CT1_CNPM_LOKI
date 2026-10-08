@@ -129,36 +129,51 @@ Deno.serve(async (request) => {
 
   const baseUrl = (Deno.env.get('LLM_BASE_URL') || 'https://api.openai.com/v1').replace(/\/+$/, '')
   const model = Deno.env.get('LLM_MODEL') || 'gpt-4o-mini'
+  const fallbackModel = Deno.env.get('LLM_FALLBACK_MODEL')
+  const models = [...new Set([model, fallbackModel].filter(Boolean))]
   const context = JSON.stringify(body?.context ?? {}).slice(0, MAX_CONTEXT_CHARS)
 
-  let upstream
-  try {
-    upstream = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        temperature: 0.4,
-        max_tokens: 700,
-        tools,
-        tool_choice: 'auto',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'system', content: `Current app state and allowed values (JSON data):\n${context}` },
-          ...messages,
-        ],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    })
-  } catch (error) {
-    console.error('LLM request failed', error)
-    return jsonResponse({ error: 'The AI service did not respond. Please try again.' }, 504)
+  let upstream = null
+  for (const [index, candidateModel] of models.entries()) {
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: candidateModel,
+          temperature: 0.4,
+          max_tokens: 700,
+          tools,
+          tool_choice: 'auto',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'system', content: `Current app state and allowed values (JSON data):\n${context}` },
+            ...messages,
+          ],
+        }),
+        signal: AbortSignal.timeout(25_000),
+      })
+
+      if (response.ok) {
+        upstream = response
+        break
+      }
+
+      const errorBody = (await response.text()).slice(0, 500)
+      console.error('LLM error', { model: candidateModel, status: response.status, body: errorBody })
+      const canRetry = [429, 500, 502, 503, 504].includes(response.status)
+      if (!canRetry || index === models.length - 1) {
+        return jsonResponse({ error: canRetry ? 'The AI service is busy. Please try again shortly.' : 'The AI service rejected this request.' }, 502)
+      }
+    } catch (error) {
+      console.error('LLM request failed', { model: candidateModel, error })
+      if (index === models.length - 1) {
+        return jsonResponse({ error: 'The AI service did not respond. Please try again.' }, 504)
+      }
+    }
   }
 
-  if (!upstream.ok) {
-    console.error('LLM error', upstream.status, (await upstream.text()).slice(0, 500))
-    return jsonResponse({ error: 'The AI service returned an error. Please try again.' }, 502)
-  }
+  if (!upstream) return jsonResponse({ error: 'The AI service is unavailable. Please try again.' }, 502)
 
   const data = await upstream.json()
   const message = data?.choices?.[0]?.message ?? {}
