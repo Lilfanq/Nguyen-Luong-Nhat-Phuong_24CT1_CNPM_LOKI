@@ -1533,11 +1533,11 @@
 
 .dragon-rescue-body {
   position: absolute;
-  z-index: 2;
-  right: 3px;
-  bottom: 25px;
-  width: 260px;
-  height: 226px;
+  z-index: 4;
+  right: 120px;
+  bottom: -8px;
+  width: 310px;
+  height: 270px;
   transform-origin: 91% 87%;
   pointer-events: none;
   filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.82));
@@ -1546,6 +1546,8 @@
 
 .dragon-rescue-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .dragon-rescue-body.is-release-gust { filter: drop-shadow(0 0 9px rgba(116, 193, 255, 0.88)); }
+
+.loki-assistant-dock > .dragon-launcher { z-index: 5; }
 
 .dragon-rescue-torso {
   transform-box: fill-box;
@@ -2041,11 +2043,11 @@
 
 .dragon-rescue-body {
   position: absolute;
-  z-index: 2;
-  right: 3px;
-  bottom: 25px;
-  width: 260px;
-  height: 226px;
+  z-index: 4;
+  right: 120px;
+  bottom: -8px;
+  width: 310px;
+  height: 270px;
   transform-origin: 91% 87%;
   pointer-events: none;
   filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.82));
@@ -2054,6 +2056,25 @@
 
 .dragon-rescue-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .dragon-rescue-body.is-release-gust { filter: drop-shadow(0 0 9px rgba(116, 193, 255, 0.88)); }
+
+.dragon-rescue-torso {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  transition: transform 70ms linear;
+}
+
+.dragon-rescue-arms {
+  transform-box: fill-box;
+  transform-origin: 88% 80%;
+}
+
+.dragon-rescue-body.is-gripping .dragon-rescue-arms {
+  animation: dragon-grip-strain 180ms ease-in-out infinite alternate;
+}
+
+.dragon-rescue-body.is-release-gust {
+  animation: dragon-gust-brace 260ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
 
 .workspace-release-gust {
   position: absolute;
@@ -2070,6 +2091,19 @@
 .workspace-release-gust svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
 @keyframes vortex-orbit { to { rotate: 360deg; } }
+
+@keyframes dragon-grip-strain {
+  from { rotate: -1.4deg; }
+  to { rotate: 1.4deg; }
+}
+
+@keyframes dragon-gust-brace {
+  0% { translate: 0 0; }
+  18% { translate: 24px -8px; }
+  46% { translate: 13px 2px; }
+  72% { translate: 18px -3px; }
+  100% { translate: 0 0; }
+}
 
 @keyframes dragon-grip-strain {
   from { rotate: -1.6deg; }
@@ -2240,6 +2274,31 @@
 .dragon-launcher[aria-expanded="true"] .dragon-speech-bubble {
   opacity: 1;
   transform: translate(0, 0) scale(1);
+}
+
+.loki-assistant-dock > .dragon-rescue-body {
+  z-index: 4;
+  right: 120px;
+  bottom: -8px;
+  width: 310px;
+  height: 270px;
+}
+
+.loki-assistant-dock > .dragon-launcher { z-index: 5; }
+
+.dragon-mascot-art.is-sucked .dragon-eyes-closed,
+.dragon-mascot-art.is-sucked .dragon-mouth-closed {
+  opacity: 0;
+}
+
+.dragon-mascot-art.is-sucked .dragon-eyes-awake,
+.dragon-mascot-art.is-sucked .dragon-mouth-open,
+.dragon-mascot-art.is-sucked .dragon-flames {
+  opacity: 1;
+}
+
+.dragon-mascot-art.is-sucked .dragon-flame {
+  animation: dragon-flame-spill 0.72s ease-in-out infinite;
 }
 
 .loki-assistant-panel {
@@ -2414,6 +2473,15 @@
 }
 
 @media (max-width: 560px) {
+  .loki-assistant-dock > .dragon-rescue-body {
+    right: 62px;
+    bottom: -5px;
+    width: 232px;
+    height: 202px;
+  }
+
+  .loki-assistant-dock > .dragon-launcher { z-index: 5; }
+
   .loki-assistant-dock {
     right: max(10px, env(safe-area-inset-right));
     bottom: max(10px, env(safe-area-inset-bottom));

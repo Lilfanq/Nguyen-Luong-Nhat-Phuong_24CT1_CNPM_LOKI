@@ -1,11 +1,11 @@
-export default function LokiDragon({ idPrefix }) {
+export default function LokiDragon({ idPrefix, suctionProgress = 0 }) {
   const headId = `${idPrefix}-head`
   const hornId = `${idPrefix}-horn`
   const outerId = `${idPrefix}-fire-outer`
   const midId = `${idPrefix}-fire-mid`
   const glowId = `${idPrefix}-glow`
 
-  return <svg className="dragon-mascot-art" viewBox="0 -16 200 186" aria-hidden="true" focusable="false">
+  return <svg className={`dragon-mascot-art ${suctionProgress > 0.08 ? 'is-sucked' : ''}`} style={{ '--dragon-panic': Math.max(0, Math.min(1, (suctionProgress - 0.08) / 0.55)) }} viewBox="0 -16 200 186" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id={headId} x1="0.1" y1="0" x2="0.9" y2="1">
         <stop offset="0" stopColor="#2a2a3a" />

@@ -780,8 +780,11 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
           const toVortexY = y - vortexCenterY
           const startAngle = Math.atan2(toVortexY, toVortexX)
           const startRadius = Math.hypot(toVortexX, toVortexY)
-          const spiralAngle = startAngle + vortexTravel * Math.PI * 3.2
-          const spiralRadius = startRadius * (1 - vortexTravel)
+          const laneIndex = ((column * 5 + row * 3) % 11) / 11
+          const lanePhase = laneIndex * Math.PI * 2
+          const spiralAngle = startAngle + vortexTravel * (Math.PI * 1.8 + lanePhase * 1.45)
+          const laneBend = 1 + Math.sin(startAngle * 2.4 + lanePhase) * 0.085 * vortexTravel
+          const spiralRadius = startRadius * Math.pow(1 - vortexTravel, 1.12) * laneBend
           const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * (1 - vortexTravel * 0.58) + vortexTravel * Math.max(0, 1 - startRadius / 90) * 0.5
           if (opacity < 0.025) continue
 
@@ -976,6 +979,8 @@ function App() {
     * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.8) / 0.2)))
   const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.82)
   const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.82) / 0.18))
+  const torsoPullX = 300 * suctionTravel
+  const torsoPullY = 210 * suctionTravel
   const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.12))
     * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.82) / 0.16)))
   const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.82) / 0.18)))
@@ -1559,18 +1564,22 @@ function App() {
     {createPortal(<div className="loki-assistant-dock">
       {dragonBodyOpacity > 0 && <div className={`dragon-rescue-body ${dragonGrip > 0.1 ? 'is-gripping' : ''} ${releaseGust > 0.01 ? 'is-release-gust' : ''}`} style={{ opacity: dragonBodyOpacity, transform: `translate3d(${84 * releaseGust}px, ${-30 * releaseGust}px, 0) rotate(${10 * releaseGust}deg)` }} aria-hidden="true">
         <svg viewBox="0 0 320 280">
-          <defs><linearGradient id="rescue-dragon-scales" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#343443" /><stop offset="0.6" stopColor="#101018" /><stop offset="1" stopColor="#030307" /></linearGradient></defs>
-          <g className="dragon-rescue-torso" style={{ transform: `scaleY(${1 - 0.72 * suctionTravel})` }}>
-            <path d="M302 151C278 162 275 188 284 208c8 19 6 36-5 51-13 18-34 20-50 5-17-15-22-41-12-62" fill="none" stroke="#05050a" strokeWidth="51" strokeLinecap="round" />
-            <path d="M302 151C278 162 275 188 284 208c8 19 6 36-5 51-13 18-34 20-50 5-17-15-22-41-12-62" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="43" strokeLinecap="round" />
-            <path d="m294 172-17-6 17-8m-12 33-18-4 17-11m16 40-18-7 17-9m-28 36-18-2 15-13m25-36 16-4-10-12" fill="none" stroke="#626277" strokeWidth="3.5" strokeLinejoin="miter" />
-            <path d="M264 183c-12-11-17-25-14-41 10 9 20 10 34 4 2 17-4 28-20 37z" fill="#11111a" stroke="#69697d" strokeWidth="3" />
+          <defs><linearGradient id="rescue-dragon-scales" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#53556c" /><stop offset="0.58" stopColor="#242634" /><stop offset="1" stopColor="#090a12" /></linearGradient></defs>
+          <path d={`M302 198 C${280 - torsoPullX * 0.12} ${220 - torsoPullY * 0.12}, ${260 - torsoPullX * 0.68} ${218 - torsoPullY * 0.68}, ${302 - torsoPullX} ${198 - torsoPullY}`} fill="none" stroke="#05050a" strokeWidth="51" strokeLinecap="round" />
+          <path d={`M302 198 C${280 - torsoPullX * 0.12} ${220 - torsoPullY * 0.12}, ${260 - torsoPullX * 0.68} ${218 - torsoPullY * 0.68}, ${302 - torsoPullX} ${198 - torsoPullY}`} fill="none" stroke="#727b99" strokeWidth="46" strokeLinecap="round" />
+          <path d={`M302 198 C${280 - torsoPullX * 0.12} ${220 - torsoPullY * 0.12}, ${260 - torsoPullX * 0.68} ${218 - torsoPullY * 0.68}, ${302 - torsoPullX} ${198 - torsoPullY}`} fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="43" strokeLinecap="round" />
+          <g className="dragon-rescue-torso" style={{ transform: `translate(${-torsoPullX}px, ${-torsoPullY}px) scaleY(${1 - 0.64 * suctionTravel})` }}>
+            <path d="M302 198C276 201 256 213 249 232c-7 20 8 32 6 48-2 17-20 24-42 19-20-5-33-21-29-39" fill="none" stroke="#05050a" strokeWidth="51" strokeLinecap="round" />
+            <path d="M302 198C276 201 256 213 249 232c-7 20 8 32 6 48-2 17-20 24-42 19-20-5-33-21-29-39" fill="none" stroke="#6c728b" strokeWidth="46" strokeLinecap="round" />
+            <path d="M302 198C276 201 256 213 249 232c-7 20 8 32 6 48-2 17-20 24-42 19-20-5-33-21-29-39" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="43" strokeLinecap="round" />
+            <path d="m294 209-17-6 17-8m-30 28-18-3 18-11m9 32-18-7 17-9m-29 36-18-2 15-13m28-25 16-4-10-12" fill="none" stroke="#626277" strokeWidth="3.5" strokeLinejoin="miter" />
+            <path d="M263 220c-12-11-17-23-14-39 10 9 20 10 34 4 2 16-4 26-20 35z" fill="#11111a" stroke="#69697d" strokeWidth="3" />
           </g>
           <g className="dragon-rescue-arms">
-            <path d="M286 187c-39-1-77 12-112 38l-29 24" fill="none" stroke="#05050a" strokeWidth="32" strokeLinecap="round" />
-            <path d="M286 187c-39-1-77 12-112 38l-29 24" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="25" strokeLinecap="round" />
-            <path d="M288 185c13 13 22 32 22 58l-4 16" fill="none" stroke="#05050a" strokeWidth="27" strokeLinecap="round" />
-            <path d="M288 185c13 13 22 32 22 58l-4 16" fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="21" strokeLinecap="round" />
+            <path d={`M${286 - torsoPullX} ${187 - torsoPullY}C248 169 208 191 164 228l-26 22`} fill="none" stroke="#05050a" strokeWidth="32" strokeLinecap="round" />
+            <path d={`M${286 - torsoPullX} ${187 - torsoPullY}C248 169 208 191 164 228l-26 22`} fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="25" strokeLinecap="round" />
+            <path d={`M${288 - torsoPullX} ${185 - torsoPullY}C321 184 326 215 313 250l-4 17`} fill="none" stroke="#05050a" strokeWidth="27" strokeLinecap="round" />
+            <path d={`M${288 - torsoPullX} ${185 - torsoPullY}C321 184 326 215 313 250l-4 17`} fill="none" stroke="url(#rescue-dragon-scales)" strokeWidth="21" strokeLinecap="round" />
             <path d="m152 247-18-7-7 9 18 6-12 9 24-2m148-8 10 11-5 9 16 3-2 9-22-3" fill="none" stroke="#e7eef1" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
             <path d="m139 248-10 15m24-7-9 17m164-23 1 17m8-21 9 15" fill="none" stroke="#11111a" strokeWidth="4" strokeLinecap="round" />
           </g>
@@ -1590,7 +1599,7 @@ function App() {
       </aside>}
       <button className="dragon-launcher" type="button" onClick={() => setAssistantOpen((open) => !open)} aria-label={assistantOpen ? 'Close Ask LOKI assistant' : 'Open Ask LOKI assistant'} aria-expanded={assistantOpen}>
         <span className="dragon-speech-bubble" aria-hidden="true">Ask LOKI</span>
-        <DragonMascot idPrefix="launcher" />
+        <DragonMascot idPrefix="launcher" suctionProgress={workspaceSuctionProgress} />
         <span className="dragon-sleep-z dragon-sleep-z-one" aria-hidden="true">z</span>
         <span className="dragon-sleep-z dragon-sleep-z-two" aria-hidden="true">z</span>
         <span className="dragon-sleep-z dragon-sleep-z-three" aria-hidden="true">z</span>
