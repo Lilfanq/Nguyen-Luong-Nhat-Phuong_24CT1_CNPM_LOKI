@@ -268,7 +268,7 @@ function batteryColor(level) {
 }
 
 function supportsRazerBatteryProtocol(device) {
-  if (device.vendorId !== 0x1532 || ![0x00e5, 0x00e6].includes(device.productId)) return false
+  if (device.vendorId !== 0x1532) return false
 
   const hasRazerReport = (collections) => (collections || []).some((collection) => {
     const hasReport = (collection.featureReports || []).some((report) => {
@@ -1178,6 +1178,8 @@ function App() {
         </div>
       </nav>
 
+      <p className="sr-only" aria-live="polite">{connectionMessage}</p>
+
       {displayDevices.length > 0 && !deviceHubOpen && !adminView && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
@@ -1187,11 +1189,7 @@ function App() {
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
             <div className="dashboard-legacy-column">
-              {displayDevices.length > 0 ? (
-                <div className="legacy-device-status">
-                  <p className="device-status-line" aria-live="polite">{connectionMessage} · {activeProfile}</p>
-                </div>
-              ) : (
+              {displayDevices.length === 0 && (
                 <div className="device-hub-empty legacy-connection-panel" aria-label="Connection hub">
                   <p className="connection-panel-kicker">Connection hub</p>
                   <div className="legacy-connect-shell">
