@@ -132,36 +132,56 @@ Deno.serve(async (request) => {
   const fallbackModel = Deno.env.get('LLM_FALLBACK_MODEL')
   const models = [...new Set([model, fallbackModel].filter(Boolean))]
   const context = JSON.stringify(body?.context ?? {}).slice(0, MAX_CONTEXT_CHARS)
+  const isGeminiProvider = new URL(baseUrl).hostname === 'generativelanguage.googleapis.com'
   const requestHeaders = new Headers({ 'Content-Type': 'application/json' })
-  if (new URL(baseUrl).hostname === 'generativelanguage.googleapis.com') {
-    requestHeaders.set('x-goog-api-key', apiKey)
-  } else {
-    requestHeaders.set('Authorization', `Bearer ${apiKey}`)
-  }
+  if (!isGeminiProvider) requestHeaders.set('Authorization', `Bearer ${apiKey}`)
 
   let upstream = null
   for (const [index, candidateModel] of models.entries()) {
     try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const requestUrl = isGeminiProvider
+        ? `${baseUrl.replace(/\/openai$/, '')}/models/${encodeURIComponent(candidateModel)}:generateContent`
+        : `${baseUrl}/chat/completions`
+      const requestBody = isGeminiProvider
+        ? {
+            systemInstruction: {
+              parts: [{ text: `${systemPrompt}\n\nCurrent app state and allowed values (JSON data):\n${context}` }],
+            },
+            contents: messages.map((message) => ({
+              role: message.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: message.content }],
+            })),
+            tools: [{ functionDeclarations: tools.map(({ function: declaration }) => ({
+              name: declaration.name,
+              description: declaration.description,
+              parameters: declaration.parameters,
+            })) }],
+            toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
+            generationConfig: { temperature: 0.4, maxOutputTokens: 700 },
+          }
+        : {
+            model: candidateModel,
+            temperature: 0.4,
+            max_tokens: 700,
+            tools,
+            tool_choice: 'auto',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'system', content: `Current app state and allowed values (JSON data):\n${context}` },
+              ...messages,
+            ],
+          }
+      const headers = new Headers(requestHeaders)
+      if (isGeminiProvider) headers.set('x-goog-api-key', apiKey)
+      const response = await fetch(requestUrl, {
         method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify({
-          model: candidateModel,
-          temperature: 0.4,
-          max_tokens: 700,
-          tools,
-          tool_choice: 'auto',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'system', content: `Current app state and allowed values (JSON data):\n${context}` },
-            ...messages,
-          ],
-        }),
+        headers,
+        body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(25_000),
       })
 
       if (response.ok) {
-        upstream = response
+        upstream = { provider: isGeminiProvider ? 'gemini' : 'openai', response }
         break
       }
 
@@ -181,17 +201,30 @@ Deno.serve(async (request) => {
 
   if (!upstream) return jsonResponse({ error: 'The AI service is unavailable. Please try again.' }, 502)
 
-  const data = await upstream.json()
-  const message = data?.choices?.[0]?.message ?? {}
-  const actions = (message.tool_calls ?? []).slice(0, 6).map((call) => {
-    let args = {}
-    try {
-      args = JSON.parse(call?.function?.arguments || '{}')
-    } catch {
-      args = {}
-    }
-    return { name: call?.function?.name, arguments: args }
-  })
+  const data = await upstream.response.json()
+  let reply = ''
+  let actions = []
 
-  return jsonResponse({ reply: typeof message.content === 'string' ? message.content : '', actions })
+  if (upstream.provider === 'gemini') {
+    const parts = data?.candidates?.[0]?.content?.parts ?? []
+    reply = parts.filter((part) => typeof part.text === 'string').map((part) => part.text).join('\n')
+    actions = parts
+      .filter((part) => typeof part.functionCall?.name === 'string')
+      .slice(0, 6)
+      .map((part) => ({ name: part.functionCall.name, arguments: part.functionCall.args ?? {} }))
+  } else {
+    const message = data?.choices?.[0]?.message ?? {}
+    reply = typeof message.content === 'string' ? message.content : ''
+    actions = (message.tool_calls ?? []).slice(0, 6).map((call) => {
+      let args = {}
+      try {
+        args = JSON.parse(call?.function?.arguments || '{}')
+      } catch {
+        args = {}
+      }
+      return { name: call?.function?.name, arguments: args }
+    })
+  }
+
+  return jsonResponse({ reply, actions })
 })
