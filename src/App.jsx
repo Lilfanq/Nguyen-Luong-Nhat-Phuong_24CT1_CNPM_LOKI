@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { aiRecommendations } from './mockData'
 import { supabase } from './supabaseClient'
@@ -118,6 +118,21 @@ function deviceInterfacePriority(device) {
   if (supportsRazerBatteryProtocol(device)) return 3
   if (isMouseInterface) return 2
   return 1
+}
+
+function deviceTransportKey(device) {
+  const signatures = []
+  const visit = (collections) => {
+    for (const collection of collections || []) {
+      const inputIds = Array.from(collection.inputReports || [], (report) => report.reportId).join('.')
+      const featureIds = Array.from(collection.featureReports || [], (report) => report.reportId).join('.')
+      signatures.push(`${collection.usagePage}:${collection.usage}:i${inputIds}:f${featureIds}`)
+      visit(collection.children)
+    }
+  }
+
+  visit(device.collections)
+  return `${device.vendorId}:${device.productId}:${signatures.sort().join('|')}`
 }
 
 function deviceKey(device) {
@@ -375,7 +390,7 @@ function DeviceVisual({ device }) {
   </div>
 }
 
-function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }) {
+function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProfile, isSignedIn }) {
   const [mode, setMode] = useState('Standard')
   const [activeControl, setActiveControl] = useState('')
   const [buttonListOpen, setButtonListOpen] = useState(false)
@@ -436,6 +451,8 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
     let isReadingFeatureReports = false
     let hasBatteryData = false
     let pollTimeoutId = null
+    const logicalDeviceKey = deviceKey(device)
+    const transportKey = deviceTransportKey(device)
     const inputReports = collectBatteryReports(device.collections, 'inputReports')
     const featureReports = collectBatteryReports(device.collections, 'featureReports')
     const hasRazerBatteryProtocol = supportsRazerBatteryProtocol(device)
@@ -457,9 +474,25 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
     device.addEventListener?.('inputreport', handleInputReport)
 
     const scanBattery = async () => {
-      if (cancelled || isReadingFeatureReports || !device.opened) return
+      if (cancelled || isReadingFeatureReports) return
       isReadingFeatureReports = true
       try {
+        if (navigator.hid) {
+          const availableDevices = uniqueDevices((await navigator.hid.getDevices()).filter(isSupportedDevice))
+          const latestDevice = availableDevices.find((candidate) => deviceKey(candidate) === logicalDeviceKey)
+          if (latestDevice && (deviceTransportKey(latestDevice) !== transportKey || (!device.opened && latestDevice.opened))) {
+            try {
+              if (!latestDevice.opened) await latestDevice.open()
+              if (!cancelled) onDeviceRefresh(latestDevice)
+            } catch {
+              // A transport may appear in getDevices before it is ready to open.
+            }
+            return
+          }
+        }
+
+        if (!device.opened) return
+
         if (device.receiveFeatureReport) {
           for (const report of featureReports) {
             try {
@@ -483,13 +516,13 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
       }
     }
 
-    const canPoll = featureReports.length > 0 || hasRazerBatteryProtocol
+    const canPoll = featureReports.length > 0 || hasRazerBatteryProtocol || device.vendorId === 0x1532
     const scheduleNextScan = () => {
       if (cancelled || !canPoll) return
       pollTimeoutId = window.setTimeout(async () => {
         await scanBattery()
         scheduleNextScan()
-      }, hasBatteryData ? 30000 : 4000)
+      }, device.vendorId === 0x1532 ? 5000 : hasBatteryData ? 30000 : 4000)
     }
 
     void scanBattery().finally(scheduleNextScan)
@@ -499,7 +532,7 @@ function DeviceWorkspace({ device, onBack, profiles, activeProfile, isSignedIn }
       device.removeEventListener?.('inputreport', handleInputReport)
       if (pollTimeoutId !== null) window.clearTimeout(pollTimeoutId)
     }
-  }, [device])
+  }, [device, onDeviceRefresh])
 
   return <div className="device-workspace">
     <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
@@ -866,6 +899,23 @@ function App() {
     }
     sessionDeviceKeysRef.current = nextKeys
   }
+
+  const refreshSelectedDevice = useCallback((refreshedDevice) => {
+    const refreshedKey = deviceKey(refreshedDevice)
+    selectedDeviceRef.current = refreshedDevice
+    devicesRef.current = uniqueDevices([
+      ...devicesRef.current.filter((device) => deviceKey(device) !== refreshedKey),
+      refreshedDevice,
+    ])
+    setDevices(devicesRef.current)
+    setSessionDevices((current) => current.map((entry) => (
+      deviceKey(entry.device) === refreshedKey ? { ...entry, device: refreshedDevice, isConnected: true } : entry
+    )))
+    setSelectedDevice(refreshedDevice)
+    setDeviceConnectionRevision((revision) => revision + 1)
+    setConnected(true)
+    setConnectionMessage(`${refreshedDevice.productName || 'Device'} connected and ready`)
+  }, [])
 
   const syncDevices = async () => {
     if (!navigator.hid) return []
@@ -1335,7 +1385,7 @@ function App() {
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
-        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
+        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} onDeviceRefresh={refreshSelectedDevice} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
