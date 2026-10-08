@@ -1407,6 +1407,168 @@
   width: 100%;
 }
 
+.workspace-pinned-nav {
+  position: sticky !important;
+  top: 0;
+  z-index: 90 !important;
+  min-height: 78px;
+  background: linear-gradient(180deg, rgba(8, 10, 22, 0.9), rgba(8, 10, 22, 0.3));
+  backdrop-filter: blur(8px);
+}
+
+.workspace-vortex-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.workspace-vortex {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: min(46vw, 52svh, 510px);
+  min-width: 230px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, #010207 0 29%, #02040a 34%, rgba(4, 8, 17, 0.96) 43%, rgba(7, 12, 24, 0.42) 51%, transparent 69%);
+  box-shadow: 0 0 42px rgba(0, 0, 0, 0.9), inset 0 0 45px rgba(0, 0, 0, 0.85);
+  filter: drop-shadow(0 0 34px rgba(68, 113, 255, 0.34));
+  will-change: transform, opacity;
+}
+
+.workspace-vortex-lip,
+.workspace-vortex-core,
+.workspace-vortex::before,
+.workspace-vortex::after {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.workspace-vortex::before {
+  content: '';
+  inset: 19%;
+  border: 7px solid transparent;
+  background: conic-gradient(from 15deg, transparent, rgba(27, 68, 191, 0.12), #7cbaff, #e5f9ff, #347aff, transparent 72%);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 6px));
+  filter: blur(1px);
+  animation: vortex-orbit 1.7s linear infinite;
+}
+
+.workspace-vortex::after {
+  content: '';
+  inset: 29%;
+  background: #010207;
+  box-shadow: 0 0 32px 16px rgba(0, 0, 0, 0.98), 0 0 62px rgba(77, 127, 255, 0.7);
+}
+
+.workspace-vortex-lip {
+  inset: 13% 2%;
+  border: 2px solid rgba(145, 200, 255, 0.88);
+  border-left-color: transparent;
+  border-right-color: rgba(57, 108, 255, 0.25);
+  filter: blur(2px);
+  transform: rotate(-14deg) scaleY(0.31);
+  box-shadow: 0 0 14px rgba(112, 180, 255, 0.85);
+  animation: vortex-orbit 2.7s linear infinite reverse;
+}
+
+.workspace-vortex-core {
+  inset: 31%;
+  background: #000;
+  box-shadow: 0 0 26px 14px #000;
+}
+
+.workspace-vortex > i,
+.workspace-vortex > b {
+  position: absolute;
+  z-index: 1;
+  top: 48%;
+  left: 8%;
+  width: 84%;
+  height: 4px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #2d63ff, #dcfaff, #3282ff, transparent);
+  box-shadow: 0 0 13px 5px rgba(79, 142, 255, 0.82);
+  transform: rotate(-12deg) scaleX(0.78);
+}
+
+.workspace-vortex > b {
+  top: 54%;
+  height: 2px;
+  opacity: 0.8;
+  transform: rotate(8deg) scaleX(0.62);
+}
+
+.workspace-vortex-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.workspace-vortex-particles > span { display: contents; }
+
+.workspace-vortex-particle {
+  position: absolute;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #89c9ff;
+  box-shadow: 0 0 10px 3px rgba(71, 139, 255, 0.9);
+  will-change: transform, opacity;
+}
+
+.workspace-vortex-particle.is-refill {
+  background: #75ff9b;
+  box-shadow: 0 0 10px 3px rgba(91, 247, 143, 0.88);
+}
+
+.dragon-rescue-body {
+  position: absolute;
+  z-index: 0;
+  right: 3px;
+  bottom: 25px;
+  width: 260px;
+  height: 226px;
+  transform-origin: 91% 87%;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.82));
+  will-change: transform, opacity;
+}
+
+.dragon-rescue-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.dragon-rescue-body.is-release-gust { filter: drop-shadow(0 0 9px rgba(116, 193, 255, 0.88)); }
+
+.workspace-release-gust {
+  position: absolute;
+  z-index: 1;
+  right: 154px;
+  bottom: 95px;
+  width: 210px;
+  height: 90px;
+  color: #d8f7ff;
+  filter: drop-shadow(0 0 7px rgba(94, 180, 255, 0.9));
+  pointer-events: none;
+}
+
+.workspace-release-gust svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .hero-shell.hub-workspace-open { overflow: clip; }
 
 .device-workspace-page {
@@ -1436,6 +1598,17 @@
   z-index: 2;
   will-change: transform;
   transform-origin: center 58%;
+}
+
+.workspace-hero-content {
+  position: relative;
+  z-index: 22;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  will-change: transform, opacity;
+  transform-origin: 50% 48%;
 }
 
 .workspace-hero-sticky .workspace-back {
@@ -1851,6 +2024,38 @@
   pointer-events: none;
 }
 
+.dragon-rescue-body {
+  position: absolute;
+  z-index: 0;
+  right: 3px;
+  bottom: 25px;
+  width: 260px;
+  height: 226px;
+  transform-origin: 91% 87%;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.82));
+  will-change: transform, opacity;
+}
+
+.dragon-rescue-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.dragon-rescue-body.is-release-gust { filter: drop-shadow(0 0 9px rgba(116, 193, 255, 0.88)); }
+
+.workspace-release-gust {
+  position: absolute;
+  z-index: 1;
+  right: 154px;
+  bottom: 95px;
+  width: 210px;
+  height: 90px;
+  color: #d8f7ff;
+  filter: drop-shadow(0 0 7px rgba(94, 180, 255, 0.9));
+  pointer-events: none;
+}
+
+.workspace-release-gust svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+@keyframes vortex-orbit { to { rotate: 360deg; } }
+
 .dragon-launcher {
   position: absolute;
   right: 0;
@@ -2200,6 +2405,12 @@
     height: 90px;
   }
 
+  .dragon-rescue-body { right: -35px; bottom: 12px; width: 220px; height: 192px; }
+  .workspace-release-gust { right: 118px; bottom: 80px; width: 165px; }
+
+  .dragon-rescue-body { right: -35px; bottom: 12px; width: 220px; height: 192px; }
+  .workspace-release-gust { right: 118px; bottom: 80px; width: 165px; }
+
   .loki-assistant-panel {
     right: -2px;
     bottom: calc(100% + 10px);
@@ -2211,6 +2422,12 @@
 @media (prefers-reduced-motion: reduce) {
   .dragon-float,
   .dragon-sleep-z,
+  .workspace-vortex::before,
+  .workspace-vortex-lip,
+  .workspace-vortex-particles,
+  .workspace-release-gust,
+  .dragon-rescue-body,
+  .workspace-vortex-particle,
   .dragon-launcher:is(:hover, :focus-visible, [aria-expanded="true"]) .dragon-flame,
   .dragon-launcher:is(:hover, :focus-visible, [aria-expanded="true"]) .dragon-ember {
     animation: none;

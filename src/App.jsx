@@ -34,6 +34,11 @@ const mouseControls = [
 ]
 
 const buttonListOrder = ['Left click', 'Right Click', 'Scroll Click', 'Scroll Up', 'Scroll Down', 'Mouse Button 4', 'Cycle up Sensitive', 'Mouse Button 5']
+const vortexParticlePositions = Array.from({ length: 36 }, (_, index) => {
+  const angle = index * 2.399963
+  const radius = 12 + ((index * 19) % 40)
+  return { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius * 0.72 }
+})
 
 const defaultButtonAssignments = {
   'Left click': { category: 'Mouse', value: 'Left Click' },
@@ -392,7 +397,7 @@ function DeviceVisual({ device }) {
   </div>
 }
 
-function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProfile, isSignedIn }) {
+function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, workspaceScrollProgress, profiles, activeProfile, isSignedIn }) {
   const [mode, setMode] = useState('Standard')
   const [activeControl, setActiveControl] = useState('')
   const [buttonListOpen, setButtonListOpen] = useState(false)
@@ -404,7 +409,6 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   const deviceProfileSettingsKey = `${deviceKey(device)}::${activeProfile}`
   const workspaceTrackRef = useRef(null)
   const workspaceSettingsRef = useRef(null)
-  const [workspaceScrollProgress, setWorkspaceScrollProgress] = useState(0)
   const [deviceSettings, setDeviceSettings] = useState(() => {
     const allSettings = getStoredJson(settingsStorage, settingsStorageKey, {})
     return { ...DEFAULT_DEVICE_SETTINGS, ...(allSettings[deviceProfileSettingsKey] || {}) }
@@ -428,13 +432,17 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
 
   useEffect(() => {
     let frame = 0
+    let lastReportedProgress = -1
     const updateProgress = () => {
       if (frame) window.cancelAnimationFrame(frame)
       frame = window.requestAnimationFrame(() => {
         const trackTop = workspaceTrackRef.current?.getBoundingClientRect().top ?? 78
-        const distance = Math.max(window.innerHeight * 0.42, 1)
+        const distance = Math.max(window.innerHeight * 0.2, 1)
         const progress = Math.min(1, Math.max(0, (78 - trackTop) / distance))
-        setWorkspaceScrollProgress((current) => Math.abs(current - progress) > 0.015 ? progress : current)
+        if (Math.abs(lastReportedProgress - progress) > 0.012) {
+          lastReportedProgress = progress
+          onScrollProgress(progress)
+        }
       })
     }
 
@@ -446,7 +454,7 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
       window.removeEventListener('resize', updateProgress)
       if (frame) window.cancelAnimationFrame(frame)
     }
-  }, [])
+  }, [onScrollProgress])
 
   const updateDeviceSettings = (patch) => {
     setDeviceSettings((current) => {
@@ -458,8 +466,9 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   }
 
   const scrollToSettings = () => workspaceSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  const heroLift = Math.sin(Math.PI * workspaceScrollProgress)
-  const heroTilt = Math.sin(Math.PI * workspaceScrollProgress) * (workspaceScrollProgress < 0.5 ? -1.1 : 1.1)
+  const suctionProgress = workspaceScrollProgress
+  const heroDissolve = Math.min(1, suctionProgress / 0.7)
+  const heroTilt = Math.sin(Math.PI * suctionProgress) * (suctionProgress < 0.5 ? -4 : 4)
 
   const openActionEditor = (control) => {
     setActiveControl(control)
@@ -584,9 +593,10 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   return <div className="workspace-scroll-shell">
     <div className="workspace-scroll-track" ref={workspaceTrackRef}>
       <section className="workspace-hero-sticky">
+        <div className="workspace-hero-content" style={{ transform: `translate3d(${-210 * heroDissolve}px, ${-175 * heroDissolve}px, 0) rotate(${heroTilt}deg) scale(${1 - 0.64 * heroDissolve})`, opacity: 1 - heroDissolve, pointerEvents: heroDissolve > 0.9 ? 'none' : 'auto' }}>
         <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
         <div className="workspace-device-chip"><span>{deviceTitle}</span></div>
-        <div className="device-workspace workspace-hero-art" style={{ transform: `translate3d(0, ${-76 * heroLift}px, 0) rotate(${heroTilt}deg) scale(${1 - 0.1 * heroLift})` }}>
+        <div className="device-workspace workspace-hero-art">
     <div className={`workspace-map ${isMouse ? 'workspace-map-mouse' : 'workspace-map-keyboard'}`}>
       <span className="workspace-map-status" aria-hidden="true" />
       {isMouse ? <>
@@ -615,6 +625,7 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
           <span>Scroll to tune this device</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
         </button>
+        </div>
       </section>
     </div>
 
@@ -677,8 +688,15 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, profiles, activeProf
   </div>
 }
 
-function DotGridCanvas({ pointerRef }) {
+function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
   const canvasRef = useRef(null)
+  const workspaceProgressRef = useRef(workspaceProgress)
+
+  useEffect(() => {
+    workspaceProgressRef.current = workspaceProgress
+    pointerRef.current.workspaceSuctionProgress = workspaceProgress
+    pointerRef.current.redraw?.()
+  }, [pointerRef, workspaceProgress])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -726,6 +744,13 @@ function DotGridCanvas({ pointerRef }) {
         smoothPointerY += (predictedY - smoothPointerY) * pointerEase
       }
       const dotPaths = Array.from({ length: 8 }, () => new Path2D())
+      const progress = workspaceProgressRef.current
+      const suction = progress <= 0.56
+        ? progress / 0.56
+        : 1 - (progress - 0.56) / 0.44
+      const vortexTravel = Math.max(0, Math.min(1, suction))
+      const vortexCenterX = width / 2
+      const vortexCenterY = height / 2
 
       for (const point of points) {
           const { x, y, column, row, visibility } = point
@@ -748,12 +773,16 @@ function DotGridCanvas({ pointerRef }) {
             }
           }
           const rippleStrength = Math.abs(ripple) / 19
-          const opacity = visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28
+          const toVortexX = vortexCenterX - x
+          const toVortexY = vortexCenterY - y
+          const vortexDistance = Math.hypot(toVortexX, toVortexY) || 1
+          const vortexSwirl = vortexTravel * Math.max(0, 1 - vortexDistance / Math.max(width, height)) * 18
+          const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * (1 - vortexTravel * 0.58) + vortexTravel * Math.max(0, 1 - vortexDistance / 90) * 0.5
           if (opacity < 0.025) continue
 
-          const dotX = x + directionX * ripple * 0.35
-          const dotY = y + backgroundWave + directionY * ripple
-          const radius = 0.8 + visibility * 1.2 + rippleStrength * 1.15
+          const dotX = x + toVortexX * vortexTravel + (-toVortexY / vortexDistance) * vortexSwirl + directionX * ripple * 0.35
+          const dotY = y + toVortexY * vortexTravel + (toVortexX / vortexDistance) * vortexSwirl + backgroundWave * (1 - vortexTravel) + directionY * ripple
+          const radius = (0.8 + visibility * 1.2 + rippleStrength * 1.15) * (1 - vortexTravel * 0.55) + vortexTravel * 1.1
           const opacityBand = Math.min(7, Math.floor(Math.min(opacity, 0.82) / 0.82 * 8))
           dotPaths[opacityBand].moveTo(dotX + radius, dotY)
           dotPaths[opacityBand].arc(dotX, dotY, radius, 0, Math.PI * 2)
@@ -840,6 +869,7 @@ function App() {
   const [sessionDevices, setSessionDevices] = useState([])
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [deviceHubOpen, setDeviceHubOpen] = useState(false)
+  const [workspaceSuctionProgress, setWorkspaceSuctionProgress] = useState(0)
   const [deviceConnectionRevision, setDeviceConnectionRevision] = useState(0)
   const selectedDeviceRef = useRef(null)
   const dotGridPointerRef = useRef({ x: 0, y: 0, velocityX: 0, velocityY: 0, time: 0, reversing: false, active: false })
@@ -932,6 +962,18 @@ function App() {
   const [messages, setMessages] = useState([
     { from: 'ai', local: true, text: 'Hi, I am LOKI. Ask me about your setup, or tell me what to change: switch profiles, remap mouse buttons, or set DPI stages.' },
   ])
+  const handleWorkspaceScrollProgress = useCallback((progress) => {
+    dotGridPointerRef.current.workspaceSuctionProgress = progress
+    dotGridPointerRef.current.redraw?.()
+    setWorkspaceSuctionProgress(progress)
+  }, [])
+  const vortexPulse = Math.sin(Math.PI * workspaceSuctionProgress)
+  const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.56)
+  const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.56) / 0.44))
+  const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.2))
+    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.78) / 0.2)))
+  const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.74) / 0.26)))
+  const dragonBodyOpacity = Math.max(dragonGrip, releaseGust * 0.9)
 
   useEffect(() => {
     if (!productLabOpen) return undefined
@@ -1424,8 +1466,8 @@ function App() {
     <>
     <main className={`hero-shell ${deviceHubOpen && selectedDevice ? 'hub-workspace-open' : ''}`} onPointerMove={handleDotGridPointerMove} onPointerLeave={handleDotGridPointerLeave}>
       <div className="grid-lines" />
-      <DotGridCanvas pointerRef={dotGridPointerRef} />
-      <nav className="relative z-20 flex items-start justify-between px-6 lg:px-10" aria-label="Main navigation">
+      <DotGridCanvas pointerRef={dotGridPointerRef} workspaceProgress={workspaceSuctionProgress} />
+      <nav className={`relative z-20 flex items-start justify-between px-6 lg:px-10 ${deviceHubOpen && selectedDevice ? 'workspace-pinned-nav' : ''}`} aria-label="Main navigation">
         <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
         <div className="hub-actions relative">
           <button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button>
@@ -1447,7 +1489,7 @@ function App() {
 
       <section className={deviceHubOpen && selectedDevice ? 'device-workspace-page' : adminView ? 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24' : displayDevices.length === 0 ? 'connection-stage' : 'relative z-10 mx-auto flex min-h-[calc(100svh-80px)] w-full max-w-7xl items-center px-6 pb-28 pt-12 lg:px-10 lg:pb-24'}>
         {adminView && isAdmin ? <AdminDashboard supabase={supabase} currentUserId={authUserId} onBack={() => setAdminView(false)} /> : <>
-        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}:${activeProfile}`} device={selectedDevice} onBack={() => setDeviceHubOpen(false)} onDeviceRefresh={refreshSelectedDevice} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
+        {deviceHubOpen && selectedDevice ? <DeviceWorkspace key={`${deviceKey(selectedDevice)}:${deviceConnectionRevision}:${actionsVersion}:${activeProfile}`} device={selectedDevice} onBack={() => { setWorkspaceSuctionProgress(0); dotGridPointerRef.current.workspaceSuctionProgress = 0; setDeviceHubOpen(false) }} onDeviceRefresh={refreshSelectedDevice} onScrollProgress={handleWorkspaceScrollProgress} workspaceScrollProgress={workspaceSuctionProgress} profiles={profiles} activeProfile={activeProfile} isSignedIn={isSignedIn} /> : null}
 
         {!deviceHubOpen && (
           <div className={`dashboard-layout ${displayDevices.length === 0 ? 'dashboard-layout--empty' : ''}`}>
@@ -1493,7 +1535,34 @@ function App() {
       {!adminView && <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />}
 
     </main>
+    {deviceHubOpen && !adminView && createPortal(<div className="workspace-vortex-overlay" aria-hidden="true">
+      <div className="workspace-vortex" style={{ opacity: vortexPulse, transform: `translate(-50%, -50%) scale(${0.72 + vortexPulse * 0.7})` }}><span className="workspace-vortex-lip" /><span className="workspace-vortex-core" /><i /><b /></div>
+      <div className="workspace-vortex-particles">
+        {vortexParticlePositions.map(({ x, y }, index) => {
+          const offsetX = (50 - x) * window.innerWidth / 100
+          const offsetY = (50 - y) * window.innerHeight / 100
+          const suctionOpacity = vortexPulse * (1 - refillTravel)
+          const refillOpacity = Math.sin(Math.PI * refillTravel) * (workspaceSuctionProgress > 0.54 ? 1 : 0)
+          return <span key={index}>
+            <i className="workspace-vortex-particle is-suction" style={{ left: `${x}%`, top: `${y}%`, opacity: suctionOpacity, transform: `translate(${offsetX * suctionTravel}px, ${offsetY * suctionTravel}px) scale(${1 - suctionTravel * 0.92})` }} />
+            <i className="workspace-vortex-particle is-refill" style={{ left: '50%', top: '50%', opacity: refillOpacity, transform: `translate(${-offsetX * refillTravel}px, ${-offsetY * refillTravel}px) scale(${0.2 + refillTravel * 0.8})` }} />
+          </span>
+        })}
+      </div>
+    </div>, document.body)}
     {createPortal(<div className="loki-assistant-dock">
+      {dragonBodyOpacity > 0 && <div className={`dragon-rescue-body ${releaseGust > 0.01 ? 'is-release-gust' : ''}`} style={{ opacity: dragonBodyOpacity, transform: `translate3d(${-112 * workspaceSuctionProgress + 84 * releaseGust}px, ${-54 * dragonGrip - 35 * releaseGust}px, 0) rotate(${-10 * dragonGrip + 14 * releaseGust}deg) scale(${1 - 0.28 * dragonGrip + 0.16 * releaseGust})` }} aria-hidden="true">
+        <svg viewBox="0 0 320 280">
+          <defs><linearGradient id="rescue-dragon-scales" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#343443" /><stop offset="0.6" stopColor="#101018" /><stop offset="1" stopColor="#030307" /></linearGradient></defs>
+          <path d="M291 229c-31-12-51-34-57-64-7-34 10-64 31-86l-31-24c-44 34-66 80-55 127 8 39 35 70 76 91z" fill="url(#rescue-dragon-scales)" stroke="#4d4d61" strokeWidth="3" />
+          <path d="m244 78-17 7 24 9-23 10 27 8-22 10 27 2m13-66-14 8 23 7-22 9 25 6-20 13" fill="none" stroke="#69697d" strokeWidth="3" strokeLinejoin="miter" />
+          <path d="M250 166c-26 4-51 18-74 41-17 17-29 38-36 61 34-28 67-40 106-35 26 3 42-10 42-31 0-20-14-37-38-36z" fill="url(#rescue-dragon-scales)" stroke="#4d4d61" strokeWidth="3" />
+          <path d="M221 207c-41-12-79-7-119 19l-45 28 13 19 51-22c34-14 64-13 100-2l28-20z" fill="url(#rescue-dragon-scales)" stroke="#55556c" strokeWidth="3" />
+          <path d="M273 202c19-29 25-58 18-92l-7-34-21 4 1 38c0 28-9 50-29 73l11 27z" fill="url(#rescue-dragon-scales)" stroke="#55556c" strokeWidth="3" />
+          <path d="m63 253-20-7-4 8 16 7-12 9 23-1m197-156-4-22 9-2 6 18 10-13 1 24" fill="none" stroke="#e1e5e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="m53 257-14 13m25-15-8 18m201-173-1-18m10 16 7-17" fill="none" stroke="#101018" strokeWidth="4" strokeLinecap="round" />
+        </svg>
+      </div>}
       {assistantOpen && <aside className="loki-assistant-panel" aria-label="LOKI hardware assistant">
         <header className="loki-assistant-header">
           <DragonMascot idPrefix="chat" />
