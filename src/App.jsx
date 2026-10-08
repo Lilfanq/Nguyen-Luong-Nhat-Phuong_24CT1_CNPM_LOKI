@@ -12,7 +12,7 @@ import DeviceCatalogPanel from './features/devices/DeviceCatalogPanel'
 import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/InsightPanels'
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
 import { ProfileControlCenter, SavedProfilesPanel } from './features/profiles/ProfilePanels'
-import DragonMascot from './DragonMascot'
+import DragonMascot from './LokiDragon'
 import './App.css'
 
 function publicAsset(path) {
