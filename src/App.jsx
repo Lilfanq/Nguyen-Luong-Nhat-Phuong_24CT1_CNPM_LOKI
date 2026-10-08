@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { aiRecommendations } from './mockData'
 import { supabase } from './supabaseClient'
 import { createProfileName, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, persistProfiles, saveActiveProfile, saveProfilesToSupabase } from './profileService'
@@ -11,6 +12,7 @@ import DeviceCatalogPanel from './features/devices/DeviceCatalogPanel'
 import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/InsightPanels'
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
 import { ProfileControlCenter, SavedProfilesPanel } from './features/profiles/ProfilePanels'
+import DragonMascot from './DragonMascot'
 import './App.css'
 
 function publicAsset(path) {
@@ -1003,7 +1005,27 @@ function App() {
     const trimmedQuestion = question.trim()
     if (!trimmedQuestion) return
 
-    setMessages((current) => [...current, { from: 'user', text: trimmedQuestion }, { from: 'ai', text: 'I have noted that. Connect a device and I can turn this into a hardware recommendation.' }])
+    const normalizedQuestion = trimmedQuestion.toLowerCase()
+    const recommendation = aiRecommendations.find(({ title, game, profileName }) => {
+      const terms = `${title} ${game} ${profileName}`.toLowerCase().split(/[\s/]+/).filter((term) => term.length > 2)
+      return terms.some((term) => normalizedQuestion.includes(term))
+    })
+    const asksToApply = /\b(apply|activate|switch|use|set)\b|áp dụng|chuyển|đổi profile|dùng profile/i.test(trimmedQuestion)
+    let reply
+
+    if (asksToApply && recommendation) {
+      applyRecommendationProfile(recommendation.profileName)
+      reply = `${recommendation.title} is now selected in LOKI. This changes the app profile only; this build does not write DPI or polling values to the physical device.`
+    } else if (/battery|pin|dpi|sensitivity|polling|độ nhạy|tần số|chuột/i.test(trimmedQuestion)) {
+      const activeRecommendation = aiRecommendations.find((item) => item.profileName === activeProfile) || recommendation || aiRecommendations[0]
+      reply = `${activeRecommendation.title} recommends ${activeRecommendation.details.dpi} DPI and ${activeRecommendation.details.polling} Hz for ${activeRecommendation.details.recommendedFor}. ${connected ? `Selected device: ${deviceName}.` : 'Connect a device to inspect its status.'} I can select an app profile, but physical device settings need a supported HID write protocol.`
+    } else if (recommendation) {
+      reply = `${recommendation.title} is aimed at ${recommendation.details.recommendedFor}. It suggests ${recommendation.details.dpi} DPI, ${recommendation.details.polling} Hz polling, and ${recommendation.details.liftOff} lift-off distance.`
+    } else {
+      reply = `I can compare FPS, MOBA, and productivity profiles, or select one in LOKI. Tell me your game or the setting you want to tune. Physical hardware changes are not available until a device write protocol is connected.`
+    }
+
+    setMessages((current) => [...current, { from: 'user', text: trimmedQuestion }, { from: 'ai', text: reply }])
     setQuestion('')
   }
 
@@ -1159,6 +1181,7 @@ function App() {
   const profilePreviewData = aiRecommendations.find((item) => item.profileName === profilePreview || item.id === profilePreview) || null
 
   return (
+    <>
     <main className={`hero-shell ${deviceHubOpen && selectedDevice ? 'hub-workspace-open' : ''}`} onPointerMove={handleDotGridPointerMove} onPointerLeave={handleDotGridPointerLeave}>
       <div className="grid-lines" />
       <DotGridCanvas pointerRef={dotGridPointerRef} />
@@ -1229,14 +1252,29 @@ function App() {
 
       {!adminView && <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />}
 
-        {!deviceHubOpen && !adminView && <button className="glass-panel fixed bottom-6 right-6 z-20 flex items-center gap-3 px-4 py-3 text-left text-sm text-white shadow-2xl shadow-emerald-950/50 transition hover:-translate-y-1 hover:border-emerald-400 sm:bottom-8 sm:right-10" type="button" onClick={() => setAssistantOpen(true)}><span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-lg text-[#09110d]">✦</span><span><b className="block text-emerald-300">Ask LOKI</b><small className="text-xs text-zinc-500">AI assistant ready</small></span></button>}
-
-        {assistantOpen && !deviceHubOpen && !adminView && <aside className="glass-panel fixed bottom-24 right-6 z-30 flex w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden shadow-2xl shadow-black/50 sm:right-10" aria-label="LOKI AI Assistant">
-          <div className="flex items-center justify-between border-b border-emerald-500/20 px-4 py-3"><div><p className="text-xs uppercase tracking-[.2em] text-emerald-300">LOKI AI</p><p className="text-xs text-zinc-500">{connected ? `Connected to ${deviceName}` : 'Hardware assistant'}</p></div><button className="text-xl text-zinc-500 hover:text-white" type="button" onClick={() => setAssistantOpen(false)} aria-label="Close assistant">×</button></div>
-          <div className="flex max-h-64 flex-col gap-3 overflow-y-auto p-4 text-sm">{messages.map((message, index) => <div className={`max-w-[85%] px-3 py-2 ${message.from === 'user' ? 'self-end bg-emerald-400 text-[#09110d]' : 'self-start bg-white/5 text-zinc-300'}`} key={`${message.from}-${index}`}>{message.text}</div>)}</div>
-          <form className="flex gap-2 border-t border-emerald-500/20 p-3" onSubmit={sendQuestion}><input className="min-w-0 flex-1 border border-emerald-500/20 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-400" type="text" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about your rig..." aria-label="Ask LOKI a question" /><button className="bg-emerald-400 px-3 text-sm font-bold text-[#09110d] hover:bg-emerald-300" type="submit" aria-label="Send question">↗</button></form>
-        </aside>}
     </main>
+    {createPortal(<div className="loki-assistant-dock">
+      {assistantOpen && <aside className="loki-assistant-panel" aria-label="LOKI hardware assistant">
+        <header className="loki-assistant-header">
+          <DragonMascot idPrefix="chat" />
+          <div><p>LOKI / HARDWARE GUIDE</p><span>{connected ? `Connected · ${deviceName}` : 'Local profile advisor'}</span></div>
+          <button type="button" onClick={() => setAssistantOpen(false)} aria-label="Close assistant" title="Close assistant">×</button>
+        </header>
+        <div className="loki-assistant-messages" aria-live="polite">{messages.map((message, index) => <div className={`loki-assistant-message ${message.from === 'user' ? 'is-user' : 'is-assistant'}`} key={`${message.from}-${index}`}>{message.text}</div>)}</div>
+        <form className="loki-assistant-form" onSubmit={sendQuestion}>
+          <input type="text" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about DPI, profiles, or setup..." aria-label="Ask LOKI about your device" />
+          <button type="submit" aria-label="Send message" title="Send message">↗</button>
+        </form>
+      </aside>}
+      <button className="dragon-launcher" type="button" onClick={() => setAssistantOpen((open) => !open)} aria-label={assistantOpen ? 'Close Ask LOKI assistant' : 'Open Ask LOKI assistant'} aria-expanded={assistantOpen}>
+        <span className="dragon-speech-bubble" aria-hidden="true">Ask LOKI</span>
+        <DragonMascot idPrefix="launcher" />
+        <span className="dragon-sleep-z dragon-sleep-z-one" aria-hidden="true">z</span>
+        <span className="dragon-sleep-z dragon-sleep-z-two" aria-hidden="true">z</span>
+        <span className="dragon-sleep-z dragon-sleep-z-three" aria-hidden="true">z</span>
+      </button>
+    </div>, document.body)}
+    </>
   )
 }
 
