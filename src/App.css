@@ -1533,7 +1533,7 @@
 
 .dragon-rescue-body {
   position: absolute;
-  z-index: 0;
+  z-index: 2;
   right: 3px;
   bottom: 25px;
   width: 260px;
@@ -2041,7 +2041,7 @@
 
 .dragon-rescue-body {
   position: absolute;
-  z-index: 0;
+  z-index: 2;
   right: 3px;
   bottom: 25px;
   width: 260px;
@@ -2078,6 +2078,7 @@
 
 .dragon-launcher {
   position: absolute;
+  z-index: 3;
   right: 0;
   bottom: 0;
   display: grid;
