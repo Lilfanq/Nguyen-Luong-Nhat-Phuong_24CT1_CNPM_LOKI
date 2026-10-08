@@ -437,7 +437,7 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
       if (frame) window.cancelAnimationFrame(frame)
       frame = window.requestAnimationFrame(() => {
         const trackTop = workspaceTrackRef.current?.getBoundingClientRect().top ?? 78
-        const distance = Math.max(window.innerHeight * 4, 1)
+        const distance = Math.max(window.innerHeight, 1)
         const progress = Math.min(1, Math.max(0, (78 - trackTop) / distance))
         if (Math.abs(lastReportedProgress - progress) > 0.012) {
           lastReportedProgress = progress
@@ -467,7 +467,10 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
 
   const scrollToSettings = () => workspaceSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   const suctionProgress = workspaceScrollProgress
-  const heroDissolve = Math.max(0, Math.min(1, (suctionProgress - 0.35) / 0.55))
+  const pullPhase = (start, end) => Math.max(0, Math.min(1, (suctionProgress - start) / (end - start)))
+  const identityPull = pullPhase(0.08, 0.52)
+  const mapPull = pullPhase(0.16, 0.94)
+  const controlPull = pullPhase(0.32, 0.9)
   const heroTilt = Math.sin(Math.PI * suctionProgress * 2) * 4
 
   const openActionEditor = (control) => {
@@ -593,10 +596,10 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
   return <div className="workspace-scroll-shell">
     <div className="workspace-scroll-track" ref={workspaceTrackRef}>
       <section className="workspace-hero-sticky">
-        <div className="workspace-hero-content" style={{ transform: `translate3d(${-210 * heroDissolve}px, ${-175 * heroDissolve}px, 0) rotate(${heroTilt}deg) scale(${1 - 0.64 * heroDissolve})`, opacity: 1 - heroDissolve, pointerEvents: heroDissolve > 0.9 ? 'none' : 'auto' }}>
-        <button className="workspace-back" type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
-        <div className="workspace-device-chip"><span>{deviceTitle}</span></div>
-        <div className="device-workspace workspace-hero-art">
+        <div className="workspace-hero-content" style={{ opacity: 1, pointerEvents: suctionProgress > 0.97 ? 'none' : 'auto' }}>
+        <button className="workspace-back" style={{ transform: `translate3d(${-90 * identityPull}px, ${-130 * identityPull}px, 0) rotate(${-12 * identityPull}deg) scale(${1 - 0.25 * identityPull})`, opacity: 1 - identityPull }} type="button" onClick={onBack} aria-label="Back to all devices"><span aria-hidden="true">←</span> All devices</button>
+        <div className="workspace-device-chip" style={{ transform: `translate(-50%, ${-110 * identityPull}px) rotate(${8 * identityPull}deg) scale(${1 - 0.34 * identityPull})`, opacity: 1 - identityPull }}><span>{deviceTitle}</span></div>
+        <div className="device-workspace workspace-hero-art" style={{ transform: `translate3d(${45 * mapPull}px, ${-100 * mapPull}px, 0) rotate(${heroTilt - 28 * mapPull}deg) scale(${1 - 0.88 * mapPull})`, opacity: 1 - mapPull }}>
     <div className={`workspace-map ${isMouse ? 'workspace-map-mouse' : 'workspace-map-keyboard'}`}>
       <span className="workspace-map-status" aria-hidden="true" />
       {isMouse ? <>
@@ -610,18 +613,18 @@ function DeviceWorkspace({ device, onBack, onDeviceRefresh, onScrollProgress, wo
       </> : <img className="workspace-keyboard-art" src={publicAsset('/devices/keyboard/preview/Aula%20HERO%20WIN68HE.webp')} alt={`${name} control map`} />}
     </div>
       </div>
-      <div className={`workspace-battery workspace-battery--${batteryColor(battery.level)} ${battery.charging ? 'is-charging' : ''} ${battery.level === null ? 'is-unavailable' : ''}`} aria-label={batteryStatus} title={batteryStatus}>
+      <div className={`workspace-battery workspace-battery--${batteryColor(battery.level)} ${battery.charging ? 'is-charging' : ''} ${battery.level === null ? 'is-unavailable' : ''}`} style={{ transform: `translate3d(${-120 * controlPull}px, ${-150 * controlPull}px, 0) rotate(-20deg)`, opacity: 1 - controlPull }} aria-label={batteryStatus} title={batteryStatus}>
       <span className="workspace-battery-icon" aria-hidden="true" style={{ '--battery-level': (battery.level ?? 0) / 100 }}>
         <span className="workspace-battery-fill" />
         {battery.charging && <svg className="workspace-battery-charge" viewBox="0 0 16 22"><path d="M9.5 1 3 12h4.5L6.5 21 13 9.5H8.5z" /></svg>}
       </span>
       <span className="workspace-battery-value">{battery.level === null ? '--%' : `${battery.level}%`}</span>
     </div>
-      <div className="workspace-mode-control" role="group" aria-label="Device mode">
+      <div className="workspace-mode-control" style={{ transform: `translate3d(calc(-50% + ${115 * controlPull}px), ${-110 * controlPull}px, 0) rotate(16deg)`, opacity: 1 - controlPull }} role="group" aria-label="Device mode">
       <button className="workspace-mode-icon" type="button" aria-label="Open button assignments" aria-expanded={buttonListOpen} onClick={() => setButtonListOpen((open) => !open)}><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="3" width="22" height="22" rx="2" /><path d="M14 3v22M7 8h3v12H7z" /></svg></button>
       {['Standard', 'Hypershift'].map((option) => <button className={mode === option ? 'is-active' : ''} type="button" key={option} aria-pressed={mode === option} onClick={() => setMode(option)}>{option}</button>)}
     </div>
-        <button className="workspace-scroll-cue" type="button" onClick={scrollToSettings} aria-label="Scroll to device settings">
+        <button className="workspace-scroll-cue" style={{ transform: `translate3d(30px, ${-100 * identityPull}px, 0)`, opacity: 1 - identityPull }} type="button" onClick={scrollToSettings} aria-label="Scroll to device settings">
           <span>Scroll to tune this device</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
         </button>
@@ -745,9 +748,9 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
       }
       const dotPaths = Array.from({ length: 8 }, () => new Path2D())
       const progress = workspaceProgressRef.current
-      const suction = progress <= 0.9
-        ? progress / 0.9
-        : 1 - (progress - 0.9) / 0.1
+      const suction = progress <= 0.8
+        ? progress / 0.8
+        : 1 - (progress - 0.8) / 0.2
       const vortexTravel = Math.max(0, Math.min(1, suction))
       const vortexCenterX = width / 2
       const vortexCenterY = height / 2
@@ -773,15 +776,17 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
             }
           }
           const rippleStrength = Math.abs(ripple) / 19
-          const toVortexX = vortexCenterX - x
-          const toVortexY = vortexCenterY - y
-          const vortexDistance = Math.hypot(toVortexX, toVortexY) || 1
-          const vortexSwirl = vortexTravel * Math.max(0, 1 - vortexDistance / Math.max(width, height)) * 18
-          const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * (1 - vortexTravel * 0.58) + vortexTravel * Math.max(0, 1 - vortexDistance / 90) * 0.5
+          const toVortexX = x - vortexCenterX
+          const toVortexY = y - vortexCenterY
+          const startAngle = Math.atan2(toVortexY, toVortexX)
+          const startRadius = Math.hypot(toVortexX, toVortexY)
+          const spiralAngle = startAngle + vortexTravel * Math.PI * 3.2
+          const spiralRadius = startRadius * (1 - vortexTravel)
+          const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * (1 - vortexTravel * 0.58) + vortexTravel * Math.max(0, 1 - startRadius / 90) * 0.5
           if (opacity < 0.025) continue
 
-          const dotX = x + toVortexX * vortexTravel + (-toVortexY / vortexDistance) * vortexSwirl + directionX * ripple * 0.35
-          const dotY = y + toVortexY * vortexTravel + (toVortexX / vortexDistance) * vortexSwirl + backgroundWave * (1 - vortexTravel) + directionY * ripple
+          const dotX = vortexCenterX + Math.cos(spiralAngle) * spiralRadius + directionX * ripple * 0.35
+          const dotY = vortexCenterY + Math.sin(spiralAngle) * spiralRadius + backgroundWave * (1 - vortexTravel) + directionY * ripple
           const radius = (0.8 + visibility * 1.2 + rippleStrength * 1.15) * (1 - vortexTravel * 0.55) + vortexTravel * 1.1
           const opacityBand = Math.min(7, Math.floor(Math.min(opacity, 0.82) / 0.82 * 8))
           dotPaths[opacityBand].moveTo(dotX + radius, dotY)
@@ -967,13 +972,13 @@ function App() {
     dotGridPointerRef.current.redraw?.()
     setWorkspaceSuctionProgress(progress)
   }, [])
-  const vortexPulse = Math.min(1, workspaceSuctionProgress / 0.14)
-    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.93) / 0.07)))
-  const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.9)
-  const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.9) / 0.1))
-  const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.16))
-    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.91) / 0.08)))
-  const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.9) / 0.1)))
+  const vortexPulse = Math.min(1, Math.max(0, (workspaceSuctionProgress - 0.04) / 0.16))
+    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.8) / 0.2)))
+  const suctionTravel = Math.min(1, workspaceSuctionProgress / 0.8)
+  const refillTravel = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.8) / 0.2))
+  const dragonGrip = Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.025) / 0.14))
+    * (1 - Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.82) / 0.14)))
+  const releaseGust = Math.sin(Math.PI * Math.max(0, Math.min(1, (workspaceSuctionProgress - 0.84) / 0.16)))
   const dragonBodyOpacity = Math.max(dragonGrip, releaseGust * 0.9)
 
   useEffect(() => {

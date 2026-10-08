@@ -1595,8 +1595,8 @@
 
 .workspace-scroll-track {
   position: relative;
-  height: calc(100svh - 78px + 400svh);
-  min-height: calc(520px + 400svh);
+  height: calc(100svh - 78px + 100svh);
+  min-height: calc(520px + 100svh);
 }
 
 .workspace-hero-sticky {
@@ -2001,7 +2001,7 @@
 }
 
 @media (max-width: 560px) {
-  .workspace-scroll-track { height: calc(100svh - 72px + 400svh); min-height: calc(500px + 400svh); }
+  .workspace-scroll-track { height: calc(100svh - 72px + 100svh); min-height: calc(500px + 100svh); }
   .workspace-hero-sticky { height: calc(100svh - 72px); min-height: 500px; }
   .workspace-scroll-cue { top: 13px; right: 12px; padding: 7px 9px; font-size: 0.57rem; }
   .workspace-settings-anchor { padding: 8px 10px 84px; }
