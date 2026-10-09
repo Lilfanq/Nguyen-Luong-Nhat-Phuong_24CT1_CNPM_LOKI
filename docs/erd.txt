@@ -1,0 +1,42 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "auth.users\n(Supabase quản lý)" as auth_users {
+	* id : uuid <<PK>>
+	--
+	email : text
+	created_at : timestamptz
+}
+
+entity "public.app_users" as app_users {
+	* id : uuid <<PK, FK>>
+	--
+	email : text
+	display_name : text
+	role : text (user | admin)
+	created_at : timestamptz
+}
+
+entity "public.user_profiles" as user_profiles {
+	* user_id : uuid <<PK, FK>>
+	* name : text <<PK>>
+	--
+	active : boolean
+	updated_at : timestamptz
+}
+
+entity "Bộ nhớ trình duyệt\n(localStorage / sessionStorage)" as browser_storage {
+	cài đặt thiết bị
+	lịch sử thiết bị
+	hồ sơ khách
+	bộ nhớ đệm hồ sơ đang chọn
+}
+
+auth_users ||--o| app_users : "id; trigger đồng bộ metadata"
+auth_users ||--o{ user_profiles : "id -> user_id"
+note bottom of browser_storage
+	Đây không phải bảng database.
+	Cài đặt và lịch sử thiết bị không đồng bộ lên cloud.
+end note
+@enduml

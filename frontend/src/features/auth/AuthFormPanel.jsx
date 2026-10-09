@@ -1,6 +1,11 @@
-export default function AuthFormPanel({ mode, email, password, feedback, onEmailChange, onPasswordChange, onSubmit, onCancel }) {
+export default function AuthFormPanel({ mode, email, password, feedback, oauthBusy, onEmailChange, onPasswordChange, onSubmit, onOAuth, onCancel }) {
   return <div className="auth-form-panel">
     <div className="auth-form-header"><span>{mode === 'signup' ? 'Create account' : 'Login'}</span></div>
+    <div className="auth-provider-list">
+      <button className="auth-provider-button" type="button" disabled={Boolean(oauthBusy)} onClick={() => onOAuth('google')}><span className="auth-provider-mark is-google" aria-hidden="true">G</span>Continue with Google</button>
+      <button className="auth-provider-button" type="button" disabled={Boolean(oauthBusy)} onClick={() => onOAuth('discord')}><span className="auth-provider-mark is-discord" aria-hidden="true">D</span>Continue with Discord</button>
+    </div>
+    <div className="auth-divider"><span>or use email</span></div>
     <label className="auth-field">
       <span>Email</span>
       <input type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="name@example.com" />

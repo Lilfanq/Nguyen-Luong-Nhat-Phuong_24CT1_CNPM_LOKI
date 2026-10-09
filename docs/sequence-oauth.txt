@@ -1,0 +1,55 @@
+@startuml LOKI_OAuth
+title LOKI - Đăng nhập OAuth bằng Google/Discord
+actor "Người dùng" as User
+boundary "Biểu mẫu xác thực\nfrontend/src/features/auth/AuthFormPanel.jsx" as Form
+control "Điều phối ứng dụng\nfrontend/src/App.jsx\nsignInWithProvider()" as App
+participant "Dịch vụ xác thực\nfrontend/src/features/auth/authService.js" as AuthService
+participant "SDK JavaScript của Supabase" as SDK
+participant "Dịch vụ xác thực Supabase" as Auth
+participant "Nhà cung cấp OAuth\nGoogle hoặc Discord" as Provider
+database "auth.users\n(danh tính tài khoản)" as AuthUsers
+participant "LOKI trên GitHub Pages / localhost" as Browser
+
+User -> Form : Chọn Tiếp tục với Google/Discord
+Form -> App : onOAuth(provider)
+App -> AuthService : signInWithOAuthProvider(supabase, provider)
+AuthService -> Auth : GET /auth/v1/settings
+Auth --> AuthService : external[provider] đang bật?
+alt Provider chưa bật hoặc không đọc được cấu hình
+  AuthService --> App : Báo lỗi cấu hình trước khi chuyển hướng
+  App --> Form : Hiển thị thông báo trong modal
+  Form --> User : Giữ nguyên trang LOKI
+else Provider đã bật
+  AuthService -> SDK : auth.signInWithOAuth({ provider, redirectTo })
+  SDK -> Auth : Tạo URL xác thực của nhà cung cấp
+  Auth --> Browser : Chuyển hướng tới Google/Discord
+  alt Người dùng chấp thuận đăng nhập
+    Browser -> Provider : Đăng nhập và chấp thuận
+    Provider --> Auth : Callback tới /auth/v1/callback
+    Auth -> AuthUsers : Tìm hoặc tạo danh tính
+    AuthUsers --> Auth : ID người dùng + metadata nhà cung cấp
+    Auth --> Browser : Chuyển về LOKI BASE_URL cùng kết quả xác thực
+    Browser -> SDK : Khôi phục phiên từ callback
+    SDK -> Auth : getSession()
+    Auth --> SDK : Phiên đăng nhập + JWT
+    SDK --> App : Phiên đã xác thực
+    App -> App : Lấy vai trò app_users; tải hồ sơ cục bộ/từ xa
+  else Người dùng hủy hoặc nhà cung cấp từ chối
+    Provider --> Auth : Người dùng hủy / lỗi xác thực
+    Auth --> Browser : Trả lỗi OAuth
+    Browser --> Form : Hiển thị lỗi; giữ modal đăng nhập
+  end
+end
+
+note over Auth,Provider
+  Callback của Supabase cần khai báo trong Google/Discord Developer Portal:
+   https://ynccytvbcsfutwstwmjr.supabase.co/auth/v1/callback
+  Trạng thái kiểm tra ngày 2026-10-09: Google=true, Discord=true.
+  Người dùng đã xác nhận đăng nhập thành công với cả hai provider.
+end note
+note over AuthService,Browser
+  Supabase phải cho phép các URL redirectTo sau:
+  GitHub Pages: https://lilfanq.github.io/Nguyen-Luong-Nhat-Phuong_24CT1_CNPM_LOKI/
+  Vite cục bộ: http://localhost:5173/
+end note
+@enduml

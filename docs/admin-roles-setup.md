@@ -5,7 +5,7 @@ LOKI reads account roles from `public.app_users`. New accounts receive the `user
 ## Apply the Supabase schema
 
 1. Open the Supabase SQL Editor for the LOKI project.
-2. Run the full script in [supabase/admin_roles.sql](../supabase/admin_roles.sql).
+2. Run the full script in [backend/supabase/admin_roles.sql](../backend/supabase/admin_roles.sql).
 3. Create your account through LOKI Sign up if it does not already exist.
 4. In SQL Editor, replace the email below with your account email and run it once:
 

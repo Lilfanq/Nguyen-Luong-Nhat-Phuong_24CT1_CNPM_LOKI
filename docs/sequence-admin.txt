@@ -1,0 +1,45 @@
+@startuml LOKI_Admin
+title LOKI - Quản lý vai trò quản trị
+actor "Người gọi" as Caller
+boundary "Giao diện quản trị" as UI
+participant "authService.js" as AuthService
+participant "Supabase SDK\nJWT" as SDK
+participant "PostgREST / RPC" as API
+database "public.app_users" as AppUsers
+
+Caller -> UI : Yêu cầu danh sách tài khoản quản trị
+UI -> AuthService : listAccountsForAdmin(supabase)
+AuthService -> SDK : SELECT id,email,role,created_at
+SDK -> API : GET /rest/v1/app_users (JWT)
+API -> AppUsers : Kiểm tra RLS theo JWT
+alt Người gọi có vai trò admin
+  AppUsers --> API : Danh sách tài khoản
+  API --> SDK : Danh sách tài khoản
+  SDK --> UI : Hiển thị danh sách
+  Caller -> UI : Chọn vai trò mới
+  UI -> AuthService : updateAccountRole(userId, role)
+  AuthService -> SDK : rpc(set_loki_user_role)
+  SDK -> API : POST /rest/v1/rpc/set_loki_user_role
+  API -> AppUsers : Kiểm tra is_loki_admin(); kiểm tra vai trò; UPDATE role
+  alt Vai trò hợp lệ và người dùng đích tồn tại
+    AppUsers --> API : Đã lưu thay đổi
+    API --> SDK : Thành công
+    SDK --> UI : Cập nhật vai trò
+  else Không phải admin, tự đổi vai trò, dữ liệu sai hoặc không tìm thấy người dùng
+    AppUsers --> API : Từ chối thay đổi và trả lỗi
+    API --> SDK : Lỗi RPC
+    SDK --> UI : Hiển thị lỗi; giữ nguyên vai trò
+  end
+else Người gọi không có vai trò admin
+  AppUsers --> API : RLS chỉ cho phép đọc bản ghi chính chủ
+  API --> SDK : Trả về bản ghi chính chủ
+  SDK --> UI : Không trả danh sách quản trị
+end
+
+note over UI,AppUsers
+  Mã giao diện: frontend/src/features/admin/AdminDashboard.jsx.
+  Mã dịch vụ: frontend/src/features/auth/authService.js.
+  Người thường bị ẩn giao diện quản trị; nhánh dưới mô phỏng request trực tiếp.
+  Không có API Node/Express riêng; Supabase RLS và RPC SECURITY DEFINER kiểm soát quyền.
+end note
+@enduml

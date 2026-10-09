@@ -191,9 +191,112 @@ button { cursor: pointer; }
 }
 .top-menu strong { color: #55d11e; font-size: .72rem; letter-spacing: .12em; padding: 8px 12px; text-transform: uppercase; }
 
+.top-menu.user-menu {
+  position: fixed;
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  left: auto;
+  width: min(370px, calc(100vw - 28px));
+  max-height: min(78svh, 680px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: 8px;
+}
+
+.top-menu.user-menu > *,
+.session-mode-panel,
+.auth-form-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.session-mode-panel,
+.auth-form-panel {
+  display: grid;
+  gap: 9px;
+  padding: 8px 4px;
+}
+
+.session-mode-panel > strong,
+.auth-form-header {
+  color: #91f078;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+
+.session-mode-note,
+.session-account-email,
+.auth-feedback {
+  color: #aab4ad;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.session-mode-panel button,
+.auth-form-actions button,
+.auth-provider-button {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(105, 239, 69, 0.28);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #e5eee6;
+  font-size: 0.76rem;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.session-mode-panel button:hover,
+.auth-form-actions button:hover,
+.auth-provider-button:hover:not(:disabled) {
+  border-color: #75ec57;
+  background: rgba(85, 209, 30, 0.12);
+  color: #bdffab;
+}
+
+.session-account-email { display: block; }
+
+.auth-form-panel { border-top: 1px solid rgba(255, 255, 255, 0.09); }
+.auth-field { display: grid; gap: 5px; min-width: 0; }
+.auth-field > span { color: #c6d0c8; font-size: 0.7rem; }
+.auth-field input { box-sizing: border-box; min-width: 0; width: 100%; padding: 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 4px; background: rgba(0,0,0,.35); color: white; font: inherit; font-size: .78rem; }
+.auth-form-actions { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.auth-form-actions .auth-cancel { border-color: rgba(255,255,255,.13); }
+.auth-provider-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+.auth-provider-button { gap: 7px; cursor: pointer; }
+.auth-provider-button:disabled { cursor: wait; opacity: .55; }
+.auth-provider-mark { display: grid; place-items: center; flex: 0 0 20px; height: 20px; border-radius: 50%; background: #f4f5f4; color: #17191b; font-weight: 800; }
+.auth-provider-mark.is-discord { background: #5865f2; color: #fff; }
+.auth-divider { display: flex; align-items: center; gap: 9px; color: #818c84; font-size: .65rem; }
+.auth-divider::before,.auth-divider::after { content: ''; height: 1px; flex: 1; background: rgba(255,255,255,.1); }
+
 .hub-actions { align-items: center; display: flex; gap: 18px; padding-top: 18px; }
 .hub-actions button { background: transparent; border: 0; color: #55d11e; height: 52px; padding: 0; width: 52px; }
 .hub-actions img { display: block; height: 100%; object-fit: contain; width: 100%; }
+
+.hub-actions .user-menu .session-mode-panel button,
+.hub-actions .user-menu .auth-form-actions button,
+.hub-actions .user-menu .auth-provider-button {
+  width: 100%;
+  height: auto;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(105, 239, 69, 0.28);
+  background: rgba(255, 255, 255, 0.035);
+  color: #e5eee6;
+}
+
+.hub-actions .user-menu .auth-provider-button { gap: 7px; }
+.hub-actions .user-menu .auth-form-actions .auth-cancel { border-color: rgba(255, 255, 255, 0.13); }
+.hub-actions .user-menu .auth-field input { height: auto; }
 
 .device-hub-empty {
   align-items: center;
@@ -464,7 +567,7 @@ button { cursor: pointer; }
   padding-top: 12px;
 }
 
-.hero-shell.hub-workspace-open .hub-actions button {
+.hero-shell.hub-workspace-open .hub-actions > button {
   height: 44px;
   width: 44px;
 }
@@ -1259,7 +1362,7 @@ button { cursor: pointer; }
     padding-top: 10px;
   }
 
-  .hero-shell.hub-workspace-open .hub-actions button {
+  .hero-shell.hub-workspace-open .hub-actions > button {
     height: 34px;
     width: 34px;
   }

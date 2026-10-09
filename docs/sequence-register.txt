@@ -1,0 +1,39 @@
+@startuml LOKI_Email_Register
+title LOKI - Đăng ký bằng email
+actor "Người dùng" as User
+boundary "Biểu mẫu xác thực\nfrontend/src/features/auth/AuthFormPanel.jsx" as UI
+control "Điều phối ứng dụng\nfrontend/src/App.jsx\nsignIn('signup')" as App
+participant "SDK JavaScript của Supabase" as SDK
+participant "Dịch vụ xác thực Supabase" as Auth
+database "auth.users\n(danh tính tài khoản)" as AuthUsers
+participant "Trigger handle_new_loki_user()" as Trigger
+database "public.app_users" as AppUsers
+
+User -> UI : Nhập email/mật khẩu; chọn Đăng ký
+UI -> App : Gửi biểu mẫu (onSubmit())
+App -> SDK : auth.signUp({ email, password })
+SDK -> Auth : POST /auth/v1/signup
+Auth -> AuthUsers : Tạo danh tính tài khoản
+AuthUsers --> Auth : ID người dùng mới
+opt Đã cài trigger trong backend/supabase/admin_roles.sql
+  AuthUsers -> Trigger : AFTER INSERT (sau khi thêm bản ghi)
+  Trigger -> AppUsers : Thêm vai trò user + metadata
+  AppUsers --> Trigger : Đã tạo bản ghi
+  Trigger --> AuthUsers : Hoàn tất trigger
+end
+alt Cần xác nhận email
+  Auth --> SDK : Đã tạo người dùng; chưa có phiên đăng nhập
+  SDK --> App : Yêu cầu xác nhận email
+  App -> UI : Đóng biểu mẫu và báo kiểm tra email
+  UI --> User : Yêu cầu xác minh địa chỉ email
+else Tắt xác nhận hoặc có phiên đăng nhập trả về
+  Auth --> SDK : Phiên xác thực + JWT
+  SDK --> App : Đã tạo phiên
+  App -> SDK : Đọc vai trò và thử đồng bộ hồ sơ
+  UI --> User : Mở LOKI với trạng thái đã đăng nhập
+end
+note over AuthUsers,AppUsers
+  Danh tính xác thực được tạo độc lập với public.app_users.
+  Cần có trigger thì mới tạo được bản ghi vai trò trong schema public.
+end note
+@enduml

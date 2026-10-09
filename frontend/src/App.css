@@ -1337,6 +1337,79 @@
   backdrop-filter: blur(12px);
 }
 
+.auth-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 8, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.auth-modal-dialog {
+  width: min(460px, 100%);
+  max-height: min(90svh, 720px);
+  overflow-y: auto;
+  border: 1px solid rgba(85, 209, 30, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(165deg, #11191a, #070a0c 72%);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.65);
+}
+
+.auth-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px 15px;
+  border-bottom: 1px solid rgba(85, 209, 30, 0.18);
+}
+
+.auth-modal-header p {
+  margin: 0 0 5px;
+  color: #8ee56f;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.auth-modal-header h2 {
+  margin: 0;
+  color: #f4f7f4;
+  font-size: 1.18rem;
+}
+
+.auth-modal-header > button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e5eee6;
+  font-size: 1.35rem;
+}
+
+.auth-modal-header > button:hover {
+  border-color: #75ec57;
+  color: #bdffab;
+}
+
+.auth-modal-dialog .auth-form-panel {
+  padding: 16px 20px 20px;
+  border-top: 0;
+}
+
+@media (max-width: 560px) {
+  .auth-modal-scrim { padding: 12px; }
+  .auth-modal-dialog { width: min(460px, 100%); max-height: 92svh; }
+  .auth-modal-header { padding: 16px 16px 13px; }
+  .auth-modal-dialog .auth-form-panel { padding: 14px 16px 18px; }
+}
+
 .product-lab-dialog {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -1533,8 +1606,8 @@
 
 .dragon-rescue-body {
   position: absolute;
-  z-index: 4;
-  right: 120px;
+  z-index: 6;
+  right: 20px;
   bottom: -8px;
   width: 310px;
   height: 270px;
@@ -1547,7 +1620,7 @@
 .dragon-rescue-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .dragon-rescue-body.is-release-gust { filter: drop-shadow(0 0 9px rgba(116, 193, 255, 0.88)); }
 
-.loki-assistant-dock > .dragon-launcher { z-index: 5; }
+.loki-assistant-dock > .dragon-launcher { z-index: 7; }
 
 .dragon-rescue-torso {
   transform-box: fill-box;
@@ -2277,14 +2350,14 @@
 }
 
 .loki-assistant-dock > .dragon-rescue-body {
-  z-index: 4;
-  right: 120px;
+  z-index: 6;
+  right: 20px;
   bottom: -8px;
   width: 310px;
   height: 270px;
 }
 
-.loki-assistant-dock > .dragon-launcher { z-index: 5; }
+.loki-assistant-dock > .dragon-launcher { z-index: 7; }
 
 .dragon-mascot-art.is-sucked .dragon-eyes-closed,
 .dragon-mascot-art.is-sucked .dragon-mouth-closed {
@@ -2474,13 +2547,13 @@
 
 @media (max-width: 560px) {
   .loki-assistant-dock > .dragon-rescue-body {
-    right: 62px;
+    right: 2px;
     bottom: -5px;
     width: 232px;
     height: 202px;
   }
 
-  .loki-assistant-dock > .dragon-launcher { z-index: 5; }
+  .loki-assistant-dock > .dragon-launcher { z-index: 7; }
 
   .loki-assistant-dock {
     right: max(10px, env(safe-area-inset-right));

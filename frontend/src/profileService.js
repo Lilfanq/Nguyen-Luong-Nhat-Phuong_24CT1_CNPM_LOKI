@@ -73,9 +73,13 @@ export async function loadProfilesFromSupabase(supabaseClient) {
   if (!supabaseClient) return []
 
   try {
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    if (userError || !user) return []
+
     const { data, error } = await supabaseClient
-      .from('profiles')
+      .from('user_profiles')
       .select('name, active')
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
 
     if (error) return []
@@ -94,13 +98,17 @@ export async function saveProfilesToSupabase(supabaseClient, profiles, activePro
   if (!supabaseClient || !Array.isArray(profiles) || profiles.length === 0) return false
 
   try {
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    if (userError || !user) return false
+
     const rows = profiles.map((profileName) => ({
+      user_id: user.id,
       name: profileName,
       active: profileName === activeProfile,
       updated_at: new Date().toISOString(),
     }))
 
-    const { error } = await supabaseClient.from('profiles').upsert(rows, { onConflict: 'name' })
+    const { error } = await supabaseClient.from('user_profiles').upsert(rows, { onConflict: 'user_id,name' })
     return !error
   } catch {
     return false

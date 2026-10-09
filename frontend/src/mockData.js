@@ -110,32 +110,22 @@ export const aiDiagnostics = [
 ]
 
 export const supabaseSchema = {
-  database: 'LOKI',
+  database: 'Supabase project ynccytvbcsfutwstwmjr / schema public',
   tables: [
     {
+      name: 'auth.users',
+      columns: ['id uuid primary key', 'email text', 'created_at timestamptz'],
+      purpose: 'Managed by Supabase Auth; stores email/password or OAuth identities and sessions.',
+    },
+    {
       name: 'app_users',
-      columns: ['id uuid references auth.users', 'email text unique', 'display_name text', 'role user/admin', 'created_at timestamptz'],
-      purpose: 'Store account display data and enforce separate gamer/admin access.',
+      columns: ['id uuid primary key references auth.users(id)', 'email text', 'display_name text', 'role user/admin', 'created_at timestamptz'],
+      purpose: 'Public account metadata and role; created by the auth.users trigger and protected by RLS.',
     },
     {
-      name: 'devices',
-      columns: ['id uuid primary key', 'user_id uuid references users', 'vendor text', 'model text', 'type text', 'connection_mode text', 'status text'],
-      purpose: 'Store attached hardware and status for each user.',
-    },
-    {
-      name: 'profiles',
-      columns: ['id uuid primary key', 'device_id uuid references devices', 'name text', 'mode text', 'dpi int', 'polling_rate int', 'updated_at timestamptz'],
-      purpose: 'Persist the per-device personalization profiles.',
-    },
-    {
-      name: 'recommendations',
-      columns: ['id uuid primary key', 'profile_id uuid references profiles', 'title text', 'game_type text', 'confidence float', 'summary text'],
-      purpose: 'Track the AI suggestions generated for the gamer.',
-    },
-    {
-      name: 'diagnostics',
-      columns: ['id uuid primary key', 'device_id uuid references devices', 'title text', 'severity text', 'message text', 'solution text'],
-      purpose: 'Store health check output and fix guidance.',
+      name: 'user_profiles',
+      columns: ['user_id uuid references auth.users(id)', 'name text', 'active boolean', 'updated_at timestamptz', 'primary key (user_id, name)'],
+      purpose: 'Cloud profile names scoped to their owner by row-level security. Device settings and history currently stay in browser storage.',
     },
   ],
 }

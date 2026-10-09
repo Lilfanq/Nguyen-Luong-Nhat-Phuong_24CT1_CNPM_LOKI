@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { aiRecommendations } from './mockData'
 import { supabase } from './supabaseClient'
 import { createProfileName, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, persistProfiles, saveActiveProfile, saveProfilesToSupabase } from './profileService'
-import { ADMIN_ROLE, getAccountRole } from './features/auth/authService'
+import { ADMIN_ROLE, getAccountRole, signInWithOAuthProvider } from './features/auth/authService'
 import AuthFormPanel from './features/auth/AuthFormPanel'
 import AuthenticatedSessionPanel from './features/auth/AuthenticatedSessionPanel'
 import GuestSessionPanel from './features/auth/GuestSessionPanel'
@@ -778,18 +778,25 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
           const rippleStrength = Math.abs(ripple) / 19
           const toVortexX = x - vortexCenterX
           const toVortexY = y - vortexCenterY
-          const startAngle = Math.atan2(toVortexY, toVortexX)
           const startRadius = Math.hypot(toVortexX, toVortexY)
-          const laneIndex = ((column * 5 + row * 3) % 11) / 11
-          const lanePhase = laneIndex * Math.PI * 2
-          const spiralAngle = startAngle + vortexTravel * (Math.PI * 1.8 + lanePhase * 1.45)
-          const laneBend = 1 + Math.sin(startAngle * 2.4 + lanePhase) * 0.085 * vortexTravel
-          const spiralRadius = startRadius * Math.pow(1 - vortexTravel, 1.12) * laneBend
-          const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * (1 - vortexTravel * 0.58) + vortexTravel * Math.max(0, 1 - startRadius / 90) * 0.5
+          const laneSeed = Math.sin(column * 127.1 + row * 311.7) * 43758.5453
+          const positionSeed = Math.sin(column * 269.5 + row * 183.3) * 43758.5453
+          const streamIndex = Math.floor((laneSeed - Math.floor(laneSeed)) * 7)
+          const flowProgress = Math.min(1, vortexTravel / 0.48)
+          const flowBlend = flowProgress * flowProgress * (3 - 2 * flowProgress)
+          const streamProgress = (positionSeed - Math.floor(positionSeed) - seconds * flowBlend * 0.035 + 1) % 1
+          const streamPhase = streamIndex / 7 * Math.PI * 2
+          const streamAngle = streamPhase + streamProgress * Math.PI * 4.2 + seconds * (0.1 + streamIndex * 0.008)
+          const streamRadius = (18 + streamProgress * Math.hypot(width, height) * 0.46) * (1 - vortexTravel * 0.94)
+          const streamX = vortexCenterX + Math.cos(streamAngle) * streamRadius
+          const streamY = vortexCenterY + Math.sin(streamAngle) * streamRadius
+          const gridOpacity = 1 - flowBlend * 0.98
+          const streamOpacity = vortexTravel * (0.32 + visibility * 0.18)
+          const opacity = (visibility * (0.28 + (Math.sin(column * 0.12 + row * 0.1 + seconds) + 1) * 0.16) + influence * 0.28) * gridOpacity + streamOpacity + vortexTravel * Math.max(0, 1 - startRadius / 90) * 0.5
           if (opacity < 0.025) continue
 
-          const dotX = vortexCenterX + Math.cos(spiralAngle) * spiralRadius + directionX * ripple * 0.35
-          const dotY = vortexCenterY + Math.sin(spiralAngle) * spiralRadius + backgroundWave * (1 - vortexTravel) + directionY * ripple
+          const dotX = x + (streamX - x) * flowBlend + directionX * ripple * 0.35
+          const dotY = y + (streamY - y) * flowBlend + backgroundWave * (1 - flowBlend) + directionY * ripple
           const radius = (0.8 + visibility * 1.2 + rippleStrength * 1.15) * (1 - vortexTravel * 0.55) + vortexTravel * 1.1
           const opacityBand = Math.min(7, Math.floor(Math.min(opacity, 0.82) / 0.82 * 8))
           dotPaths[opacityBand].moveTo(dotX + radius, dotY)
@@ -894,12 +901,16 @@ function App() {
   const [activeProfile, setActiveProfile] = useState(() => profileStorage.getItem(profileStorageKeys.activeProfile) || 'Default_profile0')
   const [deviceHistory, setDeviceHistory] = useState(() => getStoredJson(profileStorage, profileStorageKeys.history, {}))
   const [authFeedback, setAuthFeedback] = useState('')
+  const [authProviderBusy, setAuthProviderBusy] = useState(false)
   const [authUserEmail, setAuthUserEmail] = useState('')
 
   useEffect(() => {
+    if (!isSignedIn) return undefined
+    let active = true
+
     const loadRemoteProfiles = async () => {
       const remoteProfiles = await loadProfilesFromSupabase(supabase)
-      if (remoteProfiles.length > 0) {
+      if (active && remoteProfiles.some((profile) => !profiles.includes(profile))) {
         const mergedProfiles = [...new Set([...profiles, ...remoteProfiles])]
         setProfiles(mergedProfiles)
         persistProfiles(profileStorage, profileStorageKeys.profiles, mergedProfiles)
@@ -907,7 +918,8 @@ function App() {
     }
 
     void loadRemoteProfiles()
-  }, [])
+    return () => { active = false }
+  }, [isSignedIn, profiles, profileStorage, profileStorageKeys.profiles])
 
   useEffect(() => {
     let active = true
@@ -987,15 +999,18 @@ function App() {
   const dragonBodyOpacity = Math.max(dragonGrip, releaseGust * 0.9)
 
   useEffect(() => {
-    if (!productLabOpen) return undefined
+    if (!productLabOpen && !authFormOpen) return undefined
 
     const handleEscape = (event) => {
-      if (event.key === 'Escape') setProductLabOpen(false)
+      if (event.key === 'Escape') {
+        setProductLabOpen(false)
+        setAuthFormOpen(false)
+      }
     }
 
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
-  }, [productLabOpen])
+  }, [authFormOpen, productLabOpen])
 
   const reconcileSessionDevices = (currentEntries, connectedList) => {
     const nextMap = new Map((currentEntries || []).map((entry) => [deviceKey(entry.device), { device: entry.device, isConnected: false }]))
@@ -1345,6 +1360,19 @@ function App() {
     setSelectedRecommendation(aiRecommendations.find((item) => item.profileName === profileName)?.id || selectedRecommendation)
   }
 
+  const signInWithProvider = async (provider) => {
+    if (authProviderBusy) return
+    setAuthProviderBusy(true)
+    setAuthFeedback(`Connecting to ${provider === 'google' ? 'Google' : 'Discord'}...`)
+
+    try {
+      await signInWithOAuthProvider(supabase, provider)
+    } catch (error) {
+      setAuthFeedback(error?.message || `Unable to connect to ${provider}.`)
+      setAuthProviderBusy(false)
+    }
+  }
+
   const signIn = async (mode = authMode) => {
     const trimmedEmail = authEmail.trim()
     const trimmedPassword = authPassword.trim()
@@ -1397,7 +1425,7 @@ function App() {
       setAuthPassword('')
       setAuthFormOpen(false)
       setAuthFeedback(roleError
-        ? 'Signed in with standard user access. Apply supabase/admin_roles.sql to enable role management.'
+        ? 'Signed in with standard user access. Apply backend/supabase/admin_roles.sql to enable role management.'
         : mode === 'signup' ? 'Account created. You can now sync profiles.' : 'Signed in successfully.')
       void saveProfilesToSupabase(supabase, nextProfiles, activeProfile)
       if (devices.length > 0) {
@@ -1486,10 +1514,12 @@ function App() {
           <button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>
           {settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}
           {userMenuOpen && <div className="top-menu user-menu">
-            {isSignedIn ? <AuthenticatedSessionPanel email={authUserEmail} role={userRole} isAdminView={adminView} onToggleAdmin={() => setAdminView((current) => !current)} onSignOut={() => void signOut()} /> : <>
-              <GuestSessionPanel onLogin={() => { setAuthMode('login'); setAuthFormOpen(true) }} onSignup={() => { setAuthMode('signup'); setAuthFormOpen(true) }} />
-              {authFormOpen && <AuthFormPanel mode={authMode} email={authEmail} password={authPassword} feedback={authFeedback} onEmailChange={setAuthEmail} onPasswordChange={setAuthPassword} onSubmit={() => void signIn(authMode)} onCancel={() => { setAuthFormOpen(false); setAuthFeedback('') }} />}
-            </>}
+            {isSignedIn
+              ? <AuthenticatedSessionPanel email={authUserEmail} role={userRole} isAdminView={adminView} onToggleAdmin={() => setAdminView((current) => !current)} onSignOut={() => void signOut()} />
+              : <GuestSessionPanel
+                  onLogin={() => { setAuthMode('login'); setAuthFormOpen(true); setUserMenuOpen(false) }}
+                  onSignup={() => { setAuthMode('signup'); setAuthFormOpen(true); setUserMenuOpen(false) }}
+                />}
           </div>}
         </div>
       </nav>
@@ -1546,6 +1576,18 @@ function App() {
       {!adminView && <ProfileDetailModal profile={profilePreviewData} onClose={() => setProfilePreview(null)} onApply={applyRecommendationProfile} />}
 
     </main>
+    {authFormOpen && !isSignedIn && createPortal(
+      <div className="auth-modal-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) { setAuthFormOpen(false); setAuthFeedback('') } }}>
+        <section className="auth-modal-dialog" role="dialog" aria-modal="true" aria-label={authMode === 'signup' ? 'Create LOKI account' : 'Login to LOKI'}>
+          <header className="auth-modal-header">
+            <div><p>LOKI / ACCOUNT</p><h2>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</h2></div>
+            <button type="button" onClick={() => { setAuthFormOpen(false); setAuthFeedback('') }} aria-label="Close account dialog" title="Close account dialog">×</button>
+          </header>
+          <AuthFormPanel mode={authMode} email={authEmail} password={authPassword} feedback={authFeedback} oauthBusy={authProviderBusy} onEmailChange={setAuthEmail} onPasswordChange={setAuthPassword} onSubmit={() => void signIn(authMode)} onOAuth={(provider) => void signInWithProvider(provider)} onCancel={() => { setAuthFormOpen(false); setAuthFeedback('') }} />
+        </section>
+      </div>,
+      document.body,
+    )}
     {deviceHubOpen && !adminView && createPortal(<div className="workspace-vortex-overlay" aria-hidden="true">
       <div className="workspace-vortex" style={{ opacity: vortexPulse, transform: `translate(-50%, -50%) scale(${0.72 + vortexPulse * 0.7})` }}><span className="workspace-vortex-lip" /><span className="workspace-vortex-core" /><i /><b /></div>
       <div className="workspace-vortex-particles">

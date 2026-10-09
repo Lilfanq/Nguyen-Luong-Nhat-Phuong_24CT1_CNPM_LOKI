@@ -1,0 +1,49 @@
+@startuml LOKI_Email_Login
+title LOKI - Đăng nhập bằng email và tải hồ sơ
+actor "Người dùng" as User
+boundary "Biểu mẫu xác thực\nfrontend/src/features/auth/AuthFormPanel.jsx" as Form
+control "Điều phối ứng dụng\nfrontend/src/App.jsx\nsignIn() / restoreSession()" as App
+participant "SDK JavaScript của Supabase" as SDK
+participant "Dịch vụ xác thực Supabase" as Auth
+database "auth.users\n(danh tính tài khoản)" as AuthUsers
+participant "PostgREST + RLS\n(API và bảo mật theo hàng)" as API
+database "public.app_users" as AppUsers
+database "public.user_profiles" as Profiles
+database "Bộ nhớ trình duyệt\nlocalStorage" as Local
+
+User -> Form : Nhập email/mật khẩu; chọn Đăng nhập
+Form -> App : Gửi biểu mẫu (onSubmit())
+App -> SDK : auth.signInWithPassword(email, password)
+SDK -> Auth : Xác minh thông tin đăng nhập
+Auth -> AuthUsers : Kiểm tra danh tính/mật khẩu đã băm
+AuthUsers --> Auth : Kết quả xác minh danh tính
+alt Thông tin đăng nhập không hợp lệ
+  Auth --> SDK : Lỗi xác thực
+  SDK --> App : Trả về lỗi
+  App --> Form : Hiển thị thông báo lỗi
+  Form --> User : Giữ biểu mẫu đăng nhập
+else Thông tin đăng nhập hợp lệ
+  Auth --> SDK : Phiên đăng nhập + JWT
+  SDK --> App : Phiên đã xác thực
+  App -> SDK : getAccountRole(user.id)
+  SDK -> API : SELECT app_users WHERE id = JWT subject
+  API -> AppUsers : Áp dụng RLS: chính chủ hoặc admin
+  AppUsers --> API : Bản ghi vai trò
+  API --> SDK : Vai trò user/admin
+  SDK --> App : Kết quả vai trò
+  App -> SDK : loadProfilesFromSupabase()
+  SDK -> API : SELECT user_profiles WHERE user_id = JWT subject
+  alt Đã áp dụng migration hồ sơ
+    API -> Profiles : Áp dụng RLS chỉ cho chủ sở hữu
+    Profiles --> API : Các hồ sơ thuộc người dùng
+    API --> SDK : Tên hồ sơ + trạng thái đang dùng
+    SDK --> App : Hồ sơ từ máy chủ
+    App -> Local : Gộp hồ sơ từ máy chủ với bộ nhớ cục bộ
+  else Project đang kiểm tra: chưa có bảng
+    API --> SDK : 404 PGRST205
+    SDK --> App : Lỗi truy vấn
+    App -> Local : Giữ hồ sơ trong bộ nhớ/mặc định
+  end
+  App --> User : Hiển thị workspace đã đăng nhập
+end
+@enduml

@@ -1,0 +1,46 @@
+@startuml LOKI_WebHID
+title LOKI - Kết nối thiết bị HID được hỗ trợ
+actor "Người dùng" as User
+boundary "Giao diện thiết bị" as FE
+participant "navigator.hid" as WebHID
+participant "Hộp thoại cấp quyền" as Permission
+participant "Thiết bị HID" as Device
+database "Bộ nhớ trình duyệt" as Storage
+
+User -> FE : Chọn kết nối thiết bị
+activate FE
+alt WebHID không khả dụng hoặc origin không an toàn
+  FE --> User : Yêu cầu Chrome/Edge và HTTPS
+else WebHID khả dụng
+  FE -> WebHID : getDevices()
+  alt Đã có thiết bị được hỗ trợ và được cấp quyền trước đó
+    WebHID --> FE : Danh sách thiết bị đã cấp quyền
+    FE -> Device : open()
+    Device --> FE : Thiết bị sẵn sàng
+  else Chưa có thiết bị được cấp quyền
+    FE -> WebHID : requestDevice({ filters: [] })
+    WebHID -> Permission : Mở hộp thoại chọn thiết bị
+    alt Người dùng chọn thiết bị được hỗ trợ
+      Permission --> WebHID : Tham chiếu thiết bị
+      WebHID --> FE : Trả về thiết bị được chọn
+      FE -> Device : open()
+      Device --> FE : Thiết bị sẵn sàng
+    else Người dùng hủy hoặc từ chối quyền
+      Permission --> WebHID : NotFoundError / không chọn thiết bị
+      WebHID --> FE : Không có thiết bị được trả về
+      FE --> User : Hiển thị trạng thái đã hủy/bị chặn
+    end
+  end
+  opt Thiết bị đã kết nối
+    FE -> Storage : Lưu lịch sử thiết bị (chỉ khi đã đăng nhập)
+    FE --> User : Hiển thị workspace thiết bị
+  end
+end
+deactivate FE
+
+note over FE,Storage
+  Mã xử lý: frontend/src/features/devices/DeviceCatalogPanel.jsx và frontend/src/App.jsx.
+  WebHID được gọi trực tiếp từ trình duyệt; kết nối và cài đặt không ghi vào database.
+  localStorage dùng cho người đã đăng nhập; sessionStorage dùng cho khách.
+end note
+@enduml

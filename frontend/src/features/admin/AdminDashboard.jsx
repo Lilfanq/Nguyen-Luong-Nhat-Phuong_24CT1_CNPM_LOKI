@@ -67,7 +67,7 @@ export default function AdminDashboard({ supabase, currentUserId, onBack }) {
       </div>
 
       {loading && <p className="admin-state-message">Loading accounts...</p>}
-      {!loading && loadError && <p className="admin-state-message is-error">Could not load accounts. Apply `supabase/admin_roles.sql` and sign in with an admin account. {loadError}</p>}
+      {!loading && loadError && <p className="admin-state-message is-error">Could not load accounts. Apply `backend/supabase/admin_roles.sql` and sign in with an admin account. {loadError}</p>}
       {!loading && !loadError && accounts.length === 0 && <p className="admin-state-message">No registered accounts found.</p>}
 
       {!loading && !loadError && accounts.length > 0 && <div className="admin-table-wrap">

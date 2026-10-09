@@ -14,10 +14,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
-supabase/.temp/
-supabase/.branches/
-public/devices/*.exe
-public/devices/scoped_dir*/
+**/supabase/.temp/
+**/supabase/.branches/
+frontend/public/devices/*.exe
+frontend/public/devices/scoped_dir*/
 
 # Editor directories and files
 .vscode/*
