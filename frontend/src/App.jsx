@@ -1595,16 +1595,42 @@ function App() {
       setAuthProviderBusy(false)
     }
   }
+  const recordSignupFailure = async (email, reasonCode) => {
+    try {
+      const { error } = await supabase.functions.invoke('log-signup-failure', {
+        body: { email, reasonCode },
+      })
+
+      if (error) console.warn('Could not log signup failure:', error.message)
+    } catch (error) {
+      console.warn('Could not log signup failure:', error)
+    }
+  }
+
+  const getSignupFailureCode = (error) => {
+    const message = String(error?.message || '').toLowerCase()
+
+    if (message.includes('invalid email')
+      || message.includes('validate email')
+      || message.includes('invalid format')) return 'invalid_email'
+    if (error?.status === 429 || message.includes('rate limit')) return 'rate_limited'
+    if (['email_exists', 'user_already_exists'].includes(error?.code)
+      || message === 'user already registered') return 'email_exists_or_hidden'
+    if (message.includes('password')) return 'weak_password'
+    return 'auth_error'
+  }
 
   const signIn = async (mode = authMode) => {
     const trimmedEmail = authEmail.trim()
     const trimmedPassword = authPassword.trim()
 
     if (!trimmedEmail || !trimmedPassword) {
+      if (mode === 'signup') void recordSignupFailure(trimmedEmail, 'missing_fields')
       setAuthFeedback('Please enter both email and password.')
       return
     }
 
+    let signupResponseReceived = false
     try {
       setAuthFeedback(mode === 'signup' ? 'Creating account...' : 'Signing in...')
 
@@ -1612,7 +1638,11 @@ function App() {
         ? await supabase.auth.signUp({ email: trimmedEmail, password: trimmedPassword })
         : await supabase.auth.signInWithPassword({ email: trimmedEmail, password: trimmedPassword })
 
+      if (mode === 'signup') signupResponseReceived = true
       if (result.error) {
+        if (mode === 'signup') {
+          await recordSignupFailure(trimmedEmail, getSignupFailureCode(result.error))
+        }
         if (mode === 'signup' && (['email_exists', 'user_already_exists'].includes(result.error.code) || result.error.message === 'User already registered')) {
           setAuthFeedback('This email is already registered. Please log in instead.')
           return
@@ -1662,6 +1692,9 @@ function App() {
       }
       setUserMenuOpen(false)
     } catch (error) {
+      if (mode === 'signup' && !signupResponseReceived) {
+        await recordSignupFailure(trimmedEmail, getSignupFailureCode(error))
+      }
       setAuthFeedback(error?.message || 'Unable to complete the request.')
     }
   }
