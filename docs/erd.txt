@@ -26,6 +26,19 @@ entity "public.user_profiles" as user_profiles {
 	updated_at : timestamptz
 }
 
+entity "public.user_devices" as user_devices {
+	* user_id : uuid <<PK, FK>>
+	* device_key : text <<PK>>
+	--
+	vendor_id : integer
+	product_id : integer
+	product_name : text
+	manufacturer_name : text
+	device_type : text
+	first_connected_at : timestamptz
+	last_connected_at : timestamptz
+}
+
 entity "Bộ nhớ trình duyệt\n(localStorage / sessionStorage)" as browser_storage {
 	cài đặt thiết bị
 	lịch sử thiết bị
@@ -35,8 +48,10 @@ entity "Bộ nhớ trình duyệt\n(localStorage / sessionStorage)" as browser_s
 
 auth_users ||--o| app_users : "id; trigger đồng bộ metadata"
 auth_users ||--o{ user_profiles : "id -> user_id"
+auth_users ||--o{ user_devices : "id -> user_id; owner RLS"
 note bottom of browser_storage
 	Đây không phải bảng database.
-	Cài đặt và lịch sử thiết bị không đồng bộ lên cloud.
+	Cài đặt, button mapping và lịch sử thiết bị vẫn ở browser.
+	user_devices chỉ chứa metadata model HID được hỗ trợ, không lưu serial.
 end note
 @enduml

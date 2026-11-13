@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260">
+  <defs>
+    <style>
+      .bg { fill: #f1f1f1; }
+      .frame { fill: #fff; stroke: #454545; stroke-width: 2; }
+      .panel { fill: #fafafa; stroke: #777; stroke-width: 1.5; }
+      .subtle { fill: #f0f0f0; stroke: #999; stroke-width: 1; }
+      .line { stroke: #666; stroke-width: 1.5; fill: none; }
+      .dash { stroke: #888; stroke-width: 1.2; stroke-dasharray: 6 5; fill: none; }
+      .title { font-family: Arial, sans-serif; font-size: 29px; font-weight: 700; fill: #171717; }
+      .frame-title { font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; fill: #222; }
+      .label { font-family: Arial, sans-serif; font-size: 17px; font-weight: 400; fill: #333; }
+      .small { font-family: Arial, sans-serif; font-size: 15px; font-weight: 400; fill: #555; }
+      .tiny { font-family: Arial, sans-serif; font-size: 13px; font-weight: 400; fill: #666; }
+      .button { fill: #fff; stroke: #555; stroke-width: 1.5; }
+      .primary { fill: #e7e7e7; stroke: #333; stroke-width: 1.8; }
+      .connector { stroke: #777; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#777" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1800" height="1260" />
+  <text x="40" y="48" font-family="Arial, sans-serif" font-size="29px" font-weight="700" fill="#171717">LOKI — WIREFRAME</text>
+  <text x="40" y="76" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Bước 2 · Phác bố cục chức năng · Low fidelity</text>
+
+  <!-- A: Dashboard -->
+  <g id="dashboard">
+    <rect class="frame" x="30" y="105" width="540" height="420" />
+    <text x="50" y="135" font-family="Arial, sans-serif" font-size="20px" font-weight="700" fill="#222222">01 / DASHBOARD</text>
+    <rect class="panel" x="48" y="150" width="504" height="48" />
+    <text x="64" y="179" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">LOKI</text>
+    <rect class="button" x="125" y="160" width="160" height="29" />
+    <text x="137" y="179" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Profile: Default</text>
+    <rect class="button" x="350" y="160" width="58" height="29" />
+    <text x="360" y="179" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Settings</text>
+    <rect class="button" x="415" y="160" width="91" height="29" />
+    <text x="429" y="179" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Product Lab</text>
+    <rect class="button" x="512" y="160" width="28" height="29" />
+    <text x="521" y="179" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">U</text>
+
+    <text x="52" y="226" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Thiết bị</text>
+    <text x="52" y="246" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Chọn thiết bị hoặc kết nối thêm</text>
+    <rect class="panel" x="52" y="265" width="142" height="158" />
+    <rect class="subtle" x="65" y="279" width="116" height="91" />
+    <text x="96" y="327" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Ảnh chuột</text>
+    <text x="72" y="389" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Viper V4 Pro</text>
+    <text x="72" y="408" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Đã kết nối</text>
+
+    <rect class="panel" x="209" y="265" width="142" height="158" />
+    <rect class="subtle" x="222" y="279" width="116" height="91" />
+    <text x="253" y="327" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Ảnh bàn phím</text>
+    <text x="230" y="389" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">AULA Keyboard</text>
+    <text x="230" y="408" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Đã kết nối / Offline</text>
+
+    <rect class="button" x="366" y="265" width="142" height="158" />
+    <text x="427" y="339" font-family="Arial, sans-serif" font-size="29px" font-weight="700" fill="#171717">+</text>
+    <text x="393" y="374" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Thêm thiết bị</text>
+    <rect class="subtle" x="52" y="441" width="456" height="55" />
+    <text x="67" y="464" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Khách · Login · Sign up</text>
+    <text x="67" y="483" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Profile tạm lưu trong sessionStorage</text>
+  </g>
+
+  <!-- B: Device workspace -->
+  <g id="device-workspace">
+    <rect class="frame" x="600" y="105" width="720" height="420" />
+    <text x="620" y="135" font-family="Arial, sans-serif" font-size="20px" font-weight="700" fill="#222222">02 / DEVICE WORKSPACE</text>
+    <rect class="panel" x="618" y="150" width="684" height="42" />
+    <rect class="button" x="630" y="157" width="112" height="28" />
+    <text x="644" y="175" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">← All devices</text>
+    <rect class="subtle" x="824" y="157" width="275" height="28" />
+    <text x="866" y="176" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Viper V4 Pro</text>
+    <rect class="subtle" x="1190" y="157" width="96" height="28" />
+    <text x="1200" y="175" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Pin --%</text>
+
+    <rect class="panel" x="660" y="210" width="600" height="220" />
+    <text x="682" y="235" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">BUTTON MAP</text>
+    <rect class="subtle" x="878" y="248" width="170" height="148" rx="50" />
+    <line class="line" x1="963" y1="255" x2="963" y2="326" />
+    <rect class="subtle" x="934" y="315" width="58" height="25" />
+    <path class="connector" d="M900 271 C850 268 820 260 783 260" />
+    <path class="connector" d="M1026 271 C1070 268 1092 260 1135 260" />
+    <path class="connector" d="M902 321 C850 321 820 314 783 314" />
+    <path class="connector" d="M1001 321 C1060 321 1090 314 1135 314" />
+    <path class="connector" d="M900 371 C850 372 820 379 783 379" />
+    <path class="connector" d="M1025 371 C1070 372 1095 379 1135 379" />
+    <text x="694" y="264" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Left</text>
+    <text x="1145" y="264" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Right</text>
+    <text x="694" y="318" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Wheel click</text>
+    <text x="1145" y="318" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Scroll</text>
+    <text x="694" y="383" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Side 4 / 5</text>
+    <text x="1145" y="383" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">DPI cycle</text>
+
+    <rect class="button" x="858" y="441" width="203" height="31" />
+    <text x="875" y="461" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Button actions</text>
+    <rect class="subtle" x="1072" y="441" width="198" height="31" />
+    <text x="1090" y="461" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Standard | Hypershift</text>
+    <text x="654" y="488" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">↓ Settings</text>
+  </g>
+
+  <!-- C: Settings workspace -->
+  <g id="settings-workspace">
+    <rect class="frame" x="30" y="555" width="850" height="590" />
+    <text x="50" y="585" font-family="Arial, sans-serif" font-size="20px" font-weight="700" fill="#222222">03 / SETTINGS WORKSPACE</text>
+    <rect class="panel" x="48" y="602" width="814" height="62" />
+    <text x="65" y="628" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Settings workspace</text>
+    <text x="65" y="648" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Viper V4 Pro  ·  Default profile  ·  Pin</text>
+
+    <rect class="button" x="55" y="680" width="175" height="38" />
+    <rect class="button" x="237" y="680" width="175" height="38" />
+    <rect class="button" x="419" y="680" width="175" height="38" />
+    <rect class="button" x="601" y="680" width="175" height="38" />
+    <text x="107" y="704" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Performance</text>
+    <text x="303" y="704" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Power</text>
+    <text x="473" y="704" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Calibration</text>
+    <text x="661" y="704" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Advanced</text>
+
+    <rect class="panel" x="55" y="738" width="385" height="230" />
+    <text x="73" y="766" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">01 / Performance</text>
+    <text x="73" y="796" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">DPI stages</text>
+    <rect class="subtle" x="73" y="808" width="335" height="42" />
+    <text x="89" y="835" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">400  ·  800  ·  1600  ·  +</text>
+    <text x="73" y="881" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Polling rate</text>
+    <rect class="subtle" x="73" y="894" width="335" height="44" />
+    <text x="94" y="921" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">125 | 500 | 1000 | 2000 Hz</text>
+
+    <rect class="panel" x="458" y="738" width="385" height="230" />
+    <text x="476" y="766" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">02 / Power</text>
+    <text x="476" y="802" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Sleep timeout</text>
+    <line class="line" x1="478" y1="826" x2="818" y2="826" />
+    <circle cx="616" cy="826" r="7" fill="#888" />
+    <text x="476" y="862" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Low battery alert</text>
+    <line class="line" x1="478" y1="886" x2="818" y2="886" />
+    <circle cx="690" cy="886" r="7" fill="#888" />
+    <text x="476" y="930" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Browser profile only</text>
+
+    <rect class="panel" x="55" y="986" width="788" height="115" />
+    <text x="73" y="1015" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">03 / Calibration  ·  04 / Advanced</text>
+    <text x="73" y="1045" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Tracking  ·  Cut-off  ·  Curve  ·  Rotation</text>
+    <text x="73" y="1080" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Lưu trong browser; chưa ghi xuống firmware</text>
+  </g>
+
+  <!-- D: Product Lab -->
+  <g id="product-lab">
+    <rect class="frame" x="910" y="555" width="410" height="590" />
+    <text x="930" y="585" font-family="Arial, sans-serif" font-size="20px" font-weight="700" fill="#222222">04 / PRODUCT LAB</text>
+    <text x="930" y="609" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Mở từ thanh điều hướng</text>
+    <rect class="panel" x="930" y="630" width="370" height="112" />
+    <text x="948" y="658" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Gợi ý cấu hình AI</text>
+    <rect class="subtle" x="948" y="674" width="160" height="50" />
+    <rect class="subtle" x="1118" y="674" width="164" height="50" />
+    <text x="967" y="704" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">FPS</text>
+    <text x="1132" y="704" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">MOBA</text>
+
+    <rect class="panel" x="930" y="754" width="370" height="94" />
+    <text x="948" y="782" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Device catalog</text>
+    <text x="948" y="808" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Thiết bị và tương thích</text>
+    <text x="948" y="831" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Dữ liệu mẫu</text>
+
+    <rect class="panel" x="930" y="860" width="370" height="94" />
+    <text x="948" y="888" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Profiles</text>
+    <text x="948" y="914" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Chọn · Tạo · Áp dụng</text>
+    <text x="948" y="937" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Cloud sync: user_profiles</text>
+
+    <rect class="panel" x="930" y="966" width="370" height="135" />
+    <text x="948" y="994" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Insights &amp; hỗ trợ</text>
+    <rect class="subtle" x="948" y="1010" width="334" height="36" />
+    <rect class="subtle" x="948" y="1055" width="334" height="32" />
+    <text x="963" y="1033" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Chẩn đoán</text>
+    <text x="963" y="1076" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Khắc phục sự cố</text>
+  </g>
+
+  <!-- Auth modal overlay sample -->
+  <g id="account-modal">
+    <rect class="frame" x="1350" y="105" width="420" height="1040" />
+    <text x="1370" y="135" font-family="Arial, sans-serif" font-size="20px" font-weight="700" fill="#222222">05 / ACCOUNT</text>
+    <text x="1370" y="158" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Mở từ menu User</text>
+    <rect class="panel" x="1370" y="180" width="380" height="365" />
+    <rect class="subtle" x="1388" y="198" width="344" height="58" />
+    <text x="1404" y="224" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Login / Create account</text>
+    <text x="1404" y="244" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Nút đóng</text>
+    <rect class="button" x="1388" y="270" width="165" height="42" />
+    <rect class="button" x="1565" y="270" width="167" height="42" />
+    <text x="1430" y="296" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Google</text>
+    <text x="1602" y="296" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Discord</text>
+    <text x="1491" y="332" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">hoặc email</text>
+    <text x="1388" y="364" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Email</text>
+    <rect class="button" x="1388" y="374" width="344" height="38" />
+    <text x="1402" y="398" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Email</text>
+    <text x="1388" y="438" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Password</text>
+    <rect class="button" x="1388" y="448" width="344" height="38" />
+    <text x="1402" y="472" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Mật khẩu · tối thiểu 6 ký tự</text>
+    <rect class="primary" x="1388" y="500" width="230" height="34" />
+    <rect class="button" x="1628" y="500" width="104" height="34" />
+    <text x="1468" y="522" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Tiếp tục</text>
+    <text x="1658" y="522" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Hủy</text>
+    <text x="1370" y="596" font-family="Arial, sans-serif" font-size="15px" font-weight="400" fill="#555555">Trạng thái tài khoản</text>
+    <rect class="subtle" x="1370" y="612" width="380" height="72" />
+    <text x="1388" y="640" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Khách: Login / Sign up</text>
+    <text x="1388" y="661" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Đăng nhập: email / role / sign out</text>
+    <rect class="subtle" x="1370" y="705" width="380" height="112" />
+    <text x="1388" y="735" font-family="Arial, sans-serif" font-size="17px" font-weight="400" fill="#333333">Tương tác</text>
+    <text x="1388" y="760" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Đóng: nền / Escape</text>
+    <text x="1388" y="781" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Lỗi hiện dưới trường nhập</text>
+    <text x="1388" y="802" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">OAuth qua Supabase</text>
+    <text x="1370" y="855" font-family="Arial, sans-serif" font-size="13px" font-weight="400" fill="#666666">Wireframe: bố cục, chưa phải mockup</text>
+  </g>
+</svg>

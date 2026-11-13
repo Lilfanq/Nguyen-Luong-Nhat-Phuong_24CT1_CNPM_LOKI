@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Báo cáo Usability Testing — LOKI</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #202522; font: 10pt/1.42 Arial, sans-serif; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #324b3c; }
+    .brand { color: #3e6a50; font-size: 9pt; font-weight: 700; letter-spacing: 1.5px; }
+    .meta { color: #5c665f; font-size: 8.5pt; text-align: right; }
+    h1 { margin: 18px 0 4px; font-size: 24pt; line-height: 1.12; }
+    h2 { margin: 17px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #cad3cc; font-size: 13pt; }
+    h3 { margin: 0 0 5px; font-size: 10pt; }
+    p { margin: 5px 0; }
+    .subtitle { color: #59625c; font-size: 11pt; }
+    .notice { margin: 14px 0; padding: 10px 12px; border: 1.5px solid #a74c2e; background: #fff3ed; color: #7e341e; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+    .metric { min-height: 55px; padding: 9px 10px; border: 1px solid #cfd7d1; background: #f7f9f7; }
+    .metric strong { display: block; color: #31543d; font-size: 15pt; }
+    .metric span { color: #5d665f; font-size: 8pt; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    th { background: #e8eee9; color: #25352a; text-align: left; }
+    th, td { padding: 6px 7px; border: 1px solid #c9d0cb; vertical-align: top; }
+    .tasks th:nth-child(1) { width: 27%; }
+    .tasks th:nth-child(2) { width: 14%; }
+    .tasks th:nth-child(3) { width: 14%; }
+    .priority { width: 14%; font-weight: 700; }
+    ul { margin: 5px 0 0; padding-left: 17px; }
+    li { margin: 3px 0; }
+    .small { color: #59625c; font-size: 8.5pt; }
+    .footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #cad3cc; color: #667068; font-size: 8pt; }
+    .page-break { break-before: page; }
+    @media print { tr, .metric, .notice { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><div class="brand">LOKI / UX EVALUATION</div><div class="small">Gaming Peripheral Workspace</div></div>
+    <div class="meta">Bước 5 · Usability Testing<br>Ngày lập: 18/10/2026</div>
+  </header>
+
+  <h1>Báo cáo kiểm thử khả năng sử dụng</h1>
+  <p class="subtitle">Đánh giá luồng kết nối thiết bị, cấu hình, profile và trợ lý LOKI</p>
+
+  <div class="notice">KẾT QUẢ MÔ PHỎNG — CHƯA KIỂM THỬ VỚI NGƯỜI DÙNG THẬT</div>
+  <p>Tài liệu này mô phỏng cách tổng hợp kết quả để chuẩn bị báo cáo. Số người, thời gian, tỷ lệ hoàn thành và nhận xét bên dưới là giả định minh họa, không phải số liệu thực nghiệm.</p>
+
+  <div class="summary">
+    <div class="metric"><strong>5</strong><span>người tham gia giả định</span></div>
+    <div class="metric"><strong>5</strong><span>nhiệm vụ chính</span></div>
+    <div class="metric"><strong>18/25 · 72%</strong><span>hoàn thành giả định</span></div>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>1. Mục tiêu</h2>
+      <ul>
+        <li>Đánh giá khả năng tìm và kết nối thiết bị bằng WebHID.</li>
+        <li>Kiểm tra việc tìm mapping, Settings và profile.</li>
+        <li>Xem người mới hiểu dữ liệu nào lưu cục bộ, dữ liệu nào đồng bộ.</li>
+        <li>Đánh giá khả năng tìm và sử dụng LOKI Assistant.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>2. Phương pháp</h2>
+      <ul>
+        <li>Moderated think-aloud: người thử nói suy nghĩ trong khi thao tác.</li>
+        <li>Giả định: desktop, Chrome/Edge, chuột WebHID đã cấp quyền.</li>
+        <li>Điều phối viên không hướng dẫn; ghi task, thời gian, lỗi và mức dễ 1–7.</li>
+        <li>Prototype hiện là wireframe low-fi, chưa phải Figma prototype click-through.</li>
+      </ul>
+    </section>
+  </div>
+
+  <h2>3. Nhiệm vụ và kết quả mô phỏng</h2>
+  <table class="tasks">
+    <thead><tr><th>Nhiệm vụ</th><th>Hoàn thành</th><th>Thời gian</th><th>Vấn đề quan sát giả định</th></tr></thead>
+    <tbody>
+      <tr><td>T1. Tìm và kết nối chuột</td><td>4/5</td><td>45 giây</td><td>1 người không để ý hộp thoại xin quyền WebHID của trình duyệt.</td></tr>
+      <tr><td>T2. Đổi hành động Mouse Button 4</td><td>4/5</td><td>70 giây</td><td>1 người khó nhận ra nút mở danh sách Button assignments.</td></tr>
+      <tr><td>T3. Chỉnh DPI và polling rate</td><td>3/5</td><td>86 giây</td><td>2 người không nhận ra cần cuộn xuống Settings workspace.</td></tr>
+      <tr><td>T4. Tạo rồi chuyển profile</td><td>4/5</td><td>58 giây</td><td>1 người hỏi profile lưu trên cloud hay chỉ trong browser.</td></tr>
+      <tr><td>T5. Nhờ AI đổi mapping/profile</td><td>3/5</td><td>80 giây</td><td>2 người nghĩ AI sẽ ghi cấu hình trực tiếp xuống firmware.</td></tr>
+    </tbody>
+  </table>
+  <p class="small"><strong>Cách tính:</strong> 18 lần hoàn thành trên 25 lượt task giả định = 72%. Các thời gian trên chỉ minh họa cách ghi nhận.</p>
+
+  <h2>4. Phát hiện và ưu tiên cải tiến</h2>
+  <table>
+    <thead><tr><th class="priority">Ưu tiên</th><th>Phát hiện mô phỏng</th><th>Đề xuất</th></tr></thead>
+    <tbody>
+      <tr><td class="priority">P1</td><td>Người mới có thể bỏ qua bước xin quyền WebHID.</td><td>Thêm hướng dẫn ngay trước khi mở hộp thoại quyền; báo rõ khi hủy/từ chối.</td></tr>
+      <tr><td class="priority">P1</td><td>Dễ nhầm cấu hình trong LOKI với cấu hình đã ghi xuống thiết bị.</td><td>Hiển thị trạng thái “Lưu trong browser profile”; không tuyên bố đã ghi firmware.</td></tr>
+      <tr><td class="priority">P2</td><td>Nút mở Button assignments và đường dẫn xuống Settings chưa nổi bật.</td><td>Thêm nhãn/tooltip rõ và giữ scroll cue tới Settings.</td></tr>
+      <tr><td class="priority">P2</td><td>Chưa rõ profile local khác profile cloud thế nào.</td><td>Hiển thị Local/Cloud; chỉ báo đồng bộ khi bảng `user_profiles` hoạt động.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. Giới hạn kỹ thuật ảnh hưởng kiểm thử</h2>
+  <ul>
+    <li>WebHID chạy trực tiếp trong browser; thiết bị và quyền trình duyệt quyết định khả năng kết nối.</li>
+    <li>DPI, polling, power và button mapping hiện lưu trong browser; chưa ghi trực tiếp vào firmware.</li>
+    <li>AI gọi Supabase Edge Function `loki-chat`; action được validate rồi cập nhật cấu hình ứng dụng, không điều khiển phần cứng.</li>
+    <li>Profile cloud phụ thuộc migration `public.user_profiles`; cần xác nhận bảng tồn tại trước khi test đồng bộ.</li>
+  </ul>
+
+  <h2>6. Kết luận</h2>
+  <p><strong>Kết luận mô phỏng:</strong> Các luồng cơ bản có thể hoàn thành, nhưng cần làm rõ quyền WebHID, vị trí Settings/assignments, phạm vi lưu profile và giới hạn AI đối với firmware. Cần kiểm thử với người thật để xác nhận các giả định và thay toàn bộ số liệu mô phỏng.</p>
+
+  <div class="footer">LOKI · Báo cáo chuẩn bị Bước 5 · Không dùng số liệu mô phỏng như kết quả nghiên cứu thực tế.</div>
+</body>
+</html>

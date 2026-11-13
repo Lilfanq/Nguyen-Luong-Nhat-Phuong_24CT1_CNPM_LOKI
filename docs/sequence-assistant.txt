@@ -1,0 +1,35 @@
+@startuml LOKI_Assistant
+title LOKI - Tự chọn 2: Trợ lý AI hỗ trợ cấu hình
+actor "User - Người dùng" as User
+boundary "FR - LOKI Frontend\nApp.jsx / assistantService.js" as FR
+control "BE - Supabase Edge Function\nloki-chat / LLM" as BE
+database "DB - Supabase\nLoki-Hardware-Configurator\nproject ref: ynccytvbcsfutwstwmjr\npublic.user_profiles" as DB
+
+User -> FR : Gửi yêu cầu đổi profile hoặc button mapping
+FR -> BE : supabase.functions.invoke('loki-chat')
+BE -> BE : Xác minh JWT, giới hạn request, gọi LLM
+alt Edge Function hoặc LLM gặp lỗi
+  BE --> FR : Trả lỗi service / timeout
+  FR --> User : Hiện thông báo; không đổi cấu hình
+else Nhận được câu trả lời và actions
+  BE --> FR : reply + actions
+  FR -> FR : validateAssistantAction(action, rules)
+  alt Action không hợp lệ
+    FR --> User : Bỏ qua action và nêu lý do
+  else Action hợp lệ
+    FR -> FR : Cập nhật profile/button mapping trong app
+    opt Tạo/chuyển profile và cloud sync khả dụng
+      FR -> DB : UPSERT public.user_profiles (user_id, name)
+      DB --> FR : Thành công hoặc lỗi đồng bộ
+    end
+    FR --> User : Hiện câu trả lời và kết quả thao tác
+  end
+end
+
+ note over FR,DB
+   Mã xử lý: frontend/src/features/assistant/assistantService.js
+   và backend/supabase/functions/loki-chat/index.ts.
+   Button mapping lưu trong browser storage; AI không ghi DPI/polling/RGB xuống firmware.
+   DB chỉ nhận profile name/active nếu migration user_profiles đã được áp dụng.
+ end note
+ @enduml

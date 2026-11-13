@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { aiRecommendations } from './mockData'
 import { supabase } from './supabaseClient'
-import { createProfileName, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, persistProfiles, saveActiveProfile, saveProfilesToSupabase } from './profileService'
+import { createProfileName, DEFAULT_PROFILES, deleteProfileFromSupabase, deleteProfileStorage, ensureProfile, getStorageKeys, getStoredJson, getStoredProfiles, loadProfilesFromSupabase, migrateRenamedProfileStorage, persistProfiles, renameProfileInSupabase, saveActiveProfile, saveProfilesToSupabase } from './profileService'
 import { ADMIN_ROLE, getAccountRole, signInWithOAuthProvider } from './features/auth/authService'
 import AuthFormPanel from './features/auth/AuthFormPanel'
 import AuthenticatedSessionPanel from './features/auth/AuthenticatedSessionPanel'
@@ -10,6 +10,7 @@ import GuestSessionPanel from './features/auth/GuestSessionPanel'
 import AdminDashboard from './features/admin/AdminDashboard'
 import DeviceCatalogPanel from './features/devices/DeviceCatalogPanel'
 import WorkspaceSettings from './features/devices/WorkspaceSettings'
+import { saveConnectedDevicesToSupabase } from './features/devices/deviceService'
 import { DEFAULT_DEVICE_SETTINGS } from './features/devices/deviceSettings'
 import { AITroubleshootingPanel, SmartInsightsPanel } from './features/insights/InsightPanels'
 import { AIRecommendationPanel, ProfileDetailModal } from './features/recommendations/RecommendationPanels'
@@ -161,6 +162,23 @@ function deviceHistoryEntry(device) {
     vendorId: device.vendorId,
     productId: device.productId,
     lastConnected: new Date().toISOString(),
+  }
+}
+
+function deviceInventoryEntry(device) {
+  const name = device.productName || device.name || 'Unknown HID device'
+  const normalizedName = name.trim().toLowerCase().replace(/\s+/g, ' ')
+  const deviceType = /mouse|viper/.test(normalizedName)
+    ? 'mouse'
+    : /keyboard|key|aula|hero|win68/.test(normalizedName) ? 'keyboard' : 'other'
+
+  return {
+    key: deviceKey(device),
+    vendorId: Number(device.vendorId) || 0,
+    productId: Number(device.productId) || 0,
+    productName: name,
+    manufacturerName: device.manufacturerName || '',
+    deviceType,
   }
 }
 
@@ -716,7 +734,10 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
     let animationTime = 0
     let points = []
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let reducedMotion = motionPreference.matches
+    const storedMotionPreference = localStorage.getItem('loki-reduce-motion')
+    let reducedMotion = storedMotionPreference === null
+      ? motionPreference.matches
+      : storedMotionPreference === 'true'
     let canvasBounds = canvas.getBoundingClientRect()
     let smoothPointerX = 0
     let smoothPointerY = 0
@@ -843,7 +864,10 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
     }
 
     const updateMotionPreference = (event) => {
-      reducedMotion = event.matches
+      const storedPreference = localStorage.getItem('loki-reduce-motion')
+      reducedMotion = storedPreference === null
+        ? event?.matches ?? motionPreference.matches
+        : storedPreference === 'true'
       window.cancelAnimationFrame(animationFrame)
       if (reducedMotion) draw(performance.now())
       else animationFrame = window.requestAnimationFrame(renderFrame)
@@ -853,6 +877,7 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
     resizeObserver.observe(canvas)
     window.addEventListener('resize', resizeCanvas)
     motionPreference.addEventListener('change', updateMotionPreference)
+    window.addEventListener('loki-motion-preference-change', updateMotionPreference)
     pointer.redraw = () => {
       if (!reducedMotion || pointerFrame) return
       pointerFrame = window.requestAnimationFrame((time) => {
@@ -869,6 +894,7 @@ function DotGridCanvas({ pointerRef, workspaceProgress = 0 }) {
       resizeObserver.disconnect()
       window.removeEventListener('resize', resizeCanvas)
       motionPreference.removeEventListener('change', updateMotionPreference)
+      window.removeEventListener('loki-motion-preference-change', updateMotionPreference)
       delete pointer.redraw
     }
   }, [pointerRef])
@@ -881,6 +907,7 @@ function App() {
   const [connected, setConnected] = useState(false)
   const [devices, setDevices] = useState([])
   const devicesRef = useRef(devices)
+  const cloudSyncedDeviceKeysRef = useRef(new Set())
   const [sessionDevices, setSessionDevices] = useState([])
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [deviceHubOpen, setDeviceHubOpen] = useState(false)
@@ -897,12 +924,19 @@ function App() {
   const isAdmin = isSignedIn && userRole === ADMIN_ROLE
   const profileStorage = isSignedIn ? localStorage : sessionStorage
   const profileStorageKeys = getStorageKeys(isSignedIn)
-  const [profiles, setProfiles] = useState(() => getStoredProfiles(profileStorage, profileStorageKeys.profiles))
-  const [activeProfile, setActiveProfile] = useState(() => profileStorage.getItem(profileStorageKeys.activeProfile) || 'Default_profile0')
-  const [deviceHistory, setDeviceHistory] = useState(() => getStoredJson(profileStorage, profileStorageKeys.history, {}))
+  const [profiles, setProfiles] = useState(() => isSignedIn ? getStoredProfiles(localStorage, 'loki-profiles') : [...DEFAULT_PROFILES])
+  const [activeProfile, setActiveProfile] = useState(() => isSignedIn ? localStorage.getItem('loki-active-profile') || DEFAULT_PROFILES[0] : DEFAULT_PROFILES[0])
+  const [deviceHistory, setDeviceHistory] = useState(() => isSignedIn ? getStoredJson(localStorage, 'loki-device-history', {}) : {})
   const [authFeedback, setAuthFeedback] = useState('')
   const [authProviderBusy, setAuthProviderBusy] = useState(false)
   const [authUserEmail, setAuthUserEmail] = useState('')
+
+  useEffect(() => {
+    if (isSignedIn) return
+    for (const key of ['loki-temporary-profiles', 'loki-temporary-active-profile', 'loki-temporary-device-history', 'loki-temporary-button-actions', 'loki-device-settings']) {
+      sessionStorage.removeItem(key)
+    }
+  }, [isSignedIn])
 
   useEffect(() => {
     if (!isSignedIn) return undefined
@@ -935,6 +969,9 @@ function App() {
           setAuthUserId(null)
           setAuthUserEmail('')
           setUserRole('guest')
+          setProfiles([...DEFAULT_PROFILES])
+          setActiveProfile(DEFAULT_PROFILES[0])
+          setDeviceHistory({})
           localStorage.removeItem('loki-authenticated')
           return
         }
@@ -954,6 +991,9 @@ function App() {
           setAuthUserId(null)
           setAuthUserEmail('')
           setUserRole('guest')
+          setProfiles([...DEFAULT_PROFILES])
+          setActiveProfile(DEFAULT_PROFILES[0])
+          setDeviceHistory({})
           localStorage.removeItem('loki-authenticated')
         }
       }
@@ -964,8 +1004,19 @@ function App() {
   }, [])
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [profileMenuEditing, setProfileMenuEditing] = useState('')
+  const [profileMenuDraft, setProfileMenuDraft] = useState('')
+  const [profileMenuFeedback, setProfileMenuFeedback] = useState('')
+  const [profileMenuSaving, setProfileMenuSaving] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState(null)
+  const [settingsFeedback, setSettingsFeedback] = useState('')
+  const [reduceMotion, setReduceMotion] = useState(() => {
+    const stored = localStorage.getItem('loki-reduce-motion')
+    return stored === null ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : stored === 'true'
+  })
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(() => localStorage.getItem('loki-browser-notifications') === 'true' && 'Notification' in window && Notification.permission === 'granted')
   const [productLabOpen, setProductLabOpen] = useState(false)
   const [authMode, setAuthMode] = useState('login')
   const [authFormOpen, setAuthFormOpen] = useState(false)
@@ -973,6 +1024,8 @@ function App() {
   const [authPassword, setAuthPassword] = useState('')
   const [deviceName, setDeviceName] = useState('No device selected')
   const [connectionMessage, setConnectionMessage] = useState('Ready to pair with your hardware')
+  const [deviceCloudSyncStatus, setDeviceCloudSyncStatus] = useState('')
+  const previousConnectionMessageRef = useRef(connectionMessage)
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [question, setQuestion] = useState('')
   const [assistantBusy, setAssistantBusy] = useState(false)
@@ -982,6 +1035,76 @@ function App() {
   const [messages, setMessages] = useState([
     { from: 'ai', local: true, text: 'Hi, I am LOKI. Ask me about your setup, or tell me what to change: switch profiles, remap mouse buttons, or set DPI stages.' },
   ])
+  useEffect(() => {
+    document.documentElement.classList.toggle('loki-reduced-motion', reduceMotion)
+    window.dispatchEvent(new Event('loki-motion-preference-change'))
+  }, [reduceMotion])
+
+  useEffect(() => {
+    const previousMessage = previousConnectionMessageRef.current
+    previousConnectionMessageRef.current = connectionMessage
+    if (previousMessage === connectionMessage || !browserNotificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return
+
+    try {
+      new Notification('LOKI device status', { body: connectionMessage, tag: 'loki-device-status' })
+    } catch {
+      setSettingsFeedback('Browser notification could not be displayed.')
+    }
+  }, [browserNotificationsEnabled, connectionMessage])
+
+
+  useEffect(() => {
+    if (!isSignedIn || !authUserId || devices.length === 0) return undefined
+
+    const pendingDevices = devices.filter(isSupportedDevice).filter((device) => (
+      !cloudSyncedDeviceKeysRef.current.has(`${authUserId}::${deviceKey(device)}`)
+    ))
+    if (pendingDevices.length === 0) return undefined
+
+    let active = true
+    void saveConnectedDevicesToSupabase(supabase, pendingDevices.map(deviceInventoryEntry)).then((result) => {
+      if (!active) return
+      if (result.ok) {
+        pendingDevices.forEach((device) => cloudSyncedDeviceKeysRef.current.add(`${authUserId}::${deviceKey(device)}`))
+        setDeviceCloudSyncStatus(`${result.count} supported device${result.count === 1 ? '' : 's'} saved to your LOKI account.`)
+      } else {
+        setDeviceCloudSyncStatus('Device connected in this browser, but cloud inventory could not be saved. Apply the user_devices migration and sign in.')
+      }
+    })
+
+    return () => { active = false }
+  }, [authUserId, devices, isSignedIn])
+
+  useEffect(() => {
+    if (!deviceCloudSyncStatus) return undefined
+    const timeoutId = window.setTimeout(() => setDeviceCloudSyncStatus(''), 8000)
+    return () => window.clearTimeout(timeoutId)
+  }, [deviceCloudSyncStatus])
+
+  const updateBrowserNotifications = async (enabled) => {
+    if (!enabled) {
+      localStorage.setItem('loki-browser-notifications', 'false')
+      setBrowserNotificationsEnabled(false)
+      setSettingsFeedback('Browser alerts are off.')
+      return
+    }
+
+    if (!('Notification' in window)) {
+      setSettingsFeedback('This browser does not support notifications.')
+      return
+    }
+
+    const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+    if (permission !== 'granted') {
+      setBrowserNotificationsEnabled(false)
+      setSettingsFeedback(permission === 'denied' ? 'Notifications are blocked in browser settings.' : 'Notification permission was not granted.')
+      return
+    }
+
+    localStorage.setItem('loki-browser-notifications', 'true')
+    setBrowserNotificationsEnabled(true)
+    setSettingsFeedback('Browser alerts are on for device status changes.')
+  }
   const handleWorkspaceScrollProgress = useCallback((progress) => {
     dotGridPointerRef.current.workspaceSuctionProgress = progress
     dotGridPointerRef.current.redraw?.()
@@ -1295,14 +1418,14 @@ function App() {
 
     if (profilesChanged) {
       setProfiles(currentProfiles)
-      persistProfiles(profileStorage, profileStorageKeys.profiles, currentProfiles)
+      if (isSignedIn) persistProfiles(localStorage, 'loki-profiles', currentProfiles)
     }
     if (activeChanged) {
       setActiveProfile(currentProfile)
-      saveActiveProfile(profileStorage, profileStorageKeys.activeProfile, currentProfile)
+      if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', currentProfile)
       if (recommendationId) setSelectedRecommendation(recommendationId)
     }
-    if (profilesChanged || activeChanged) void saveProfilesToSupabase(supabase, currentProfiles, currentProfile)
+    if (isSignedIn && (profilesChanged || activeChanged)) void saveProfilesToSupabase(supabase, currentProfiles, currentProfile)
     if (buttonsChanged) {
       storage.setItem(storeName, JSON.stringify(storedActions))
       setActionsVersion((version) => version + 1)
@@ -1341,22 +1464,122 @@ function App() {
     const nextProfile = createProfileName(profiles)
     const nextProfiles = [...profiles, nextProfile]
     setProfiles(nextProfiles)
-    persistProfiles(profileStorage, profileStorageKeys.profiles, nextProfiles)
-    void saveProfilesToSupabase(supabase, nextProfiles, nextProfile)
+    if (isSignedIn) {
+      persistProfiles(localStorage, 'loki-profiles', nextProfiles)
+      void saveProfilesToSupabase(supabase, nextProfiles, nextProfile)
+    }
     setActiveProfile(nextProfile)
-    saveActiveProfile(profileStorage, profileStorageKeys.activeProfile, nextProfile)
+    if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', nextProfile)
     setProfileMenuOpen(false)
+  }
+
+  const renameProfile = async (oldName, requestedName) => {
+    const newName = requestedName.trim()
+    if (!newName) return { ok: false, message: 'Profile name cannot be empty.' }
+    if (newName.length > 40) return { ok: false, message: 'Profile names can be up to 40 characters.' }
+    if (newName.toLocaleLowerCase() !== oldName.toLocaleLowerCase() && profiles.some((profile) => profile.toLocaleLowerCase() === newName.toLocaleLowerCase())) {
+      return { ok: false, message: 'A profile with that name already exists.' }
+    }
+    if (newName === oldName) return { ok: true, message: 'Profile name is unchanged.' }
+
+    const nextProfiles = profiles.map((profile) => profile === oldName ? newName : profile)
+    const nextActiveProfile = activeProfile === oldName ? newName : activeProfile
+    const history = migrateRenamedProfileStorage(
+      profileStorage,
+      profileStorageKeys.history,
+      isSignedIn ? 'loki-button-actions' : 'loki-temporary-button-actions',
+      oldName,
+      newName,
+    )
+
+    setProfiles(nextProfiles)
+    setDeviceHistory(history)
+    if (isSignedIn) persistProfiles(localStorage, 'loki-profiles', nextProfiles)
+    if (activeProfile === oldName) {
+      setActiveProfile(newName)
+      if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', newName)
+    }
+
+    if (!isSignedIn) return { ok: true, message: 'Profile renamed for this session; it will reset after reload unless you sign in.' }
+
+    const cloudSaved = await renameProfileInSupabase(supabase, oldName, newName, nextActiveProfile)
+    return cloudSaved
+      ? { ok: true, message: 'Profile renamed and synced to Supabase.' }
+      : { ok: true, message: 'Profile renamed locally. Cloud sync is unavailable; the change is saved in this browser.' }
+  }
+
+  const deleteProfile = async (profileName) => {
+    if (profiles.length <= 1) return { ok: false, message: 'Keep at least one profile.' }
+    if (!window.confirm(`Delete profile "${profileName}" and its saved settings for this profile?`)) return { ok: false, cancelled: true }
+
+    const nextProfiles = profiles.filter((profile) => profile !== profileName)
+    const nextActiveProfile = activeProfile === profileName ? nextProfiles[0] : activeProfile
+    const history = deleteProfileStorage(
+      profileStorage,
+      profileStorageKeys.history,
+      isSignedIn ? 'loki-button-actions' : 'loki-temporary-button-actions',
+      profileName,
+      profiles[0],
+    )
+
+    setProfiles(nextProfiles)
+    setDeviceHistory(history)
+    if (isSignedIn) persistProfiles(localStorage, 'loki-profiles', nextProfiles)
+    if (activeProfile === profileName) {
+      setActiveProfile(nextActiveProfile)
+      if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', nextActiveProfile)
+    }
+
+    if (!isSignedIn) return { ok: true, message: 'Profile deleted for this guest session; the default profiles return after reload.' }
+
+    const cloudDeleted = await deleteProfileFromSupabase(supabase, profileName)
+    if (cloudDeleted) await saveProfilesToSupabase(supabase, nextProfiles, nextActiveProfile)
+    return cloudDeleted
+      ? { ok: true, message: 'Profile and its saved settings were deleted.' }
+      : { ok: true, message: 'Profile deleted locally. Cloud sync is unavailable; the cloud record may remain.' }
+  }
+
+  const beginProfileMenuRename = (profileName) => {
+    setProfileMenuEditing(profileName)
+    setProfileMenuDraft(profileName)
+    setProfileMenuFeedback('')
+  }
+
+  const cancelProfileMenuRename = () => {
+    setProfileMenuEditing('')
+    setProfileMenuDraft('')
+    setProfileMenuFeedback('')
+  }
+
+  const saveProfileMenuRename = async (profileName) => {
+    if (profileMenuSaving) return
+    setProfileMenuSaving(true)
+    setProfileMenuFeedback('')
+    try {
+      const result = await renameProfile(profileName, profileMenuDraft)
+      if (!result.ok) {
+        setProfileMenuFeedback(result.message)
+        return
+      }
+      setProfileMenuEditing('')
+      setProfileMenuDraft('')
+      setProfileMenuFeedback(result.message)
+    } finally {
+      setProfileMenuSaving(false)
+    }
   }
 
   const applyRecommendationProfile = (profileName) => {
     const nextProfiles = ensureProfile(profileName, profiles)
     if (nextProfiles.length !== profiles.length) {
       setProfiles(nextProfiles)
-      persistProfiles(profileStorage, profileStorageKeys.profiles, nextProfiles)
+      if (isSignedIn) persistProfiles(localStorage, 'loki-profiles', nextProfiles)
     }
     setActiveProfile(profileName)
-    saveActiveProfile(profileStorage, profileStorageKeys.activeProfile, profileName)
-    void saveProfilesToSupabase(supabase, nextProfiles, profileName)
+    if (isSignedIn) {
+      saveActiveProfile(localStorage, 'loki-active-profile', profileName)
+      void saveProfilesToSupabase(supabase, nextProfiles, profileName)
+    }
     setSelectedRecommendation(aiRecommendations.find((item) => item.profileName === profileName)?.id || selectedRecommendation)
   }
 
@@ -1389,12 +1612,16 @@ function App() {
         ? await supabase.auth.signUp({ email: trimmedEmail, password: trimmedPassword })
         : await supabase.auth.signInWithPassword({ email: trimmedEmail, password: trimmedPassword })
 
-      if (result.error) throw result.error
+      if (result.error) {
+        if (mode === 'signup' && (['email_exists', 'user_already_exists'].includes(result.error.code) || result.error.message === 'User already registered')) {
+          setAuthFeedback('This email is already registered. Please log in instead.')
+          return
+        }
+        throw result.error
+      }
       if (mode === 'signup' && !result.data.session) {
-        setAuthEmail('')
         setAuthPassword('')
-        setAuthFormOpen(false)
-        setAuthFeedback('Account created. Check your email, then sign in to continue.')
+        setAuthFeedback('Check your email for a confirmation link. If you already have an account, log in instead.')
         return
       }
 
@@ -1440,12 +1667,14 @@ function App() {
   }
 
   const signOut = async () => {
-    sessionStorage.setItem('loki-temporary-profiles', JSON.stringify(profiles))
-    sessionStorage.setItem('loki-temporary-active-profile', activeProfile)
-    sessionStorage.setItem('loki-temporary-device-history', JSON.stringify(deviceHistory))
-    sessionStorage.setItem('loki-temporary-button-actions', localStorage.getItem('loki-button-actions') || '{}')
+    for (const key of ['loki-temporary-profiles', 'loki-temporary-active-profile', 'loki-temporary-device-history', 'loki-temporary-button-actions', 'loki-device-settings']) {
+      sessionStorage.removeItem(key)
+    }
     localStorage.removeItem('loki-authenticated')
     if (supabase?.auth?.signOut) await supabase.auth.signOut()
+    setProfiles([...DEFAULT_PROFILES])
+    setActiveProfile(DEFAULT_PROFILES[0])
+    setDeviceHistory({})
     setIsSignedIn(false)
     setAuthUserId(null)
     setAuthUserEmail('')
@@ -1507,12 +1736,63 @@ function App() {
       <div className="grid-lines" />
       <DotGridCanvas pointerRef={dotGridPointerRef} workspaceProgress={workspaceSuctionProgress} />
       <nav className={`relative z-20 flex items-start justify-between px-6 lg:px-10 ${deviceHubOpen && selectedDevice ? 'workspace-pinned-nav' : ''}`} aria-label="Main navigation">
-        <div className="relative"><button className="profile-tab" type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-expanded={profileMenuOpen}><img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span></button>{profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">{profiles.filter((profile) => profile !== activeProfile).map((profile) => <button className="profile-hub-option" key={profile} type="button" onClick={() => { setActiveProfile(profile); profileStorage.setItem(profileStorageKeys.activeProfile, profile); setProfileMenuOpen(false) }} aria-label={`Select ${profile}`}><span>{profile}</span></button>)}<button className="profile-add" type="button" onClick={addProfile}>+ New profile</button></div>}</div>
+        <div className="relative">
+          <button className="profile-tab" type="button" onClick={() => { setProfileMenuOpen(!profileMenuOpen); setProfileMenuEditing(''); setProfileMenuFeedback('') }} aria-expanded={profileMenuOpen}>
+            <img src={publicAsset('/Profile.png')} alt="" aria-hidden="true" /><span>{activeProfile}</span>
+          </button>
+          {profileMenuOpen && <div className="profile-menu profile-hub-menu" aria-label="Profiles">
+            <div className="profile-menu-list">
+              {profiles.map((profile) => <div className={`profile-menu-entry ${profile === activeProfile ? 'is-active' : ''}`} key={profile}>
+                {profileMenuEditing === profile
+                  ? <form className="profile-menu-rename-form" onSubmit={(event) => { event.preventDefault(); void saveProfileMenuRename(profile) }}>
+                      <label><span>Profile name</span><input autoFocus aria-label={`New name for ${profile}`} maxLength={40} value={profileMenuDraft} onChange={(event) => setProfileMenuDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') cancelProfileMenuRename() }} /></label>
+                      <div><button type="submit" disabled={profileMenuSaving}>{profileMenuSaving ? 'Saving…' : 'Save'}</button><button type="button" className="profile-menu-rename-cancel" onClick={cancelProfileMenuRename} disabled={profileMenuSaving}>Cancel</button></div>
+                    </form>
+                  : <>
+                      <button className="profile-hub-option" type="button" aria-pressed={profile === activeProfile} onClick={() => { if (profile !== activeProfile) { setActiveProfile(profile); if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', profile) }; setProfileMenuOpen(false); setProfileMenuFeedback('') }}>
+                        <span>{profile}</span><small>{profile === activeProfile ? 'Active' : 'Select profile'}</small>
+                      </button>
+                      <div className="profile-menu-entry-actions">
+                        <button className="profile-menu-rename-button" type="button" aria-label={`Rename ${profile}`} onClick={() => beginProfileMenuRename(profile)}>Rename</button>
+                        <button className="profile-menu-delete-button" type="button" aria-label={`Delete ${profile}`} disabled={profiles.length <= 1} onClick={async () => { const result = await deleteProfile(profile); if (!result.cancelled) setProfileMenuFeedback(result.message) }}>Delete</button>
+                      </div>
+                    </>}
+              </div>)}
+            </div>
+            {profileMenuFeedback && <small className="profile-menu-feedback" role="status" aria-live="polite">{profileMenuFeedback}</small>}
+            <button className="profile-add" type="button" onClick={addProfile}>+ New profile</button>
+          </div>}
+        </div>
         <div className="hub-actions relative">
-          <button type="button" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button>
+          <button type="button" onClick={() => { setSettingsOpen((open) => !open); setSettingsSection(null); setSettingsFeedback('') }} aria-label="Open settings" aria-expanded={settingsOpen}><img src={publicAsset('/B%C3%A1nh%20r%C4%83ng%20icon.png')} alt="" /></button>
           {!adminView && <button className="product-lab-launch" type="button" onClick={() => setProductLabOpen(true)} aria-label="Open Product Lab" aria-expanded={productLabOpen}>Product Lab</button>}
           <button type="button" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Open profile actions" aria-expanded={userMenuOpen}><img src={publicAsset('/icon%20personal.png')} alt="" /></button>
-          {settingsOpen && <div className="top-menu settings-menu"><strong>Settings</strong><button type="button">Appearance</button><button type="button">Connection</button><button type="button">Notifications</button></div>}
+          {settingsOpen && <div className="top-menu settings-menu" role="dialog" aria-label="Settings">
+            <strong>Settings</strong>
+            {!settingsSection ? <div className="settings-menu-options">
+              <button type="button" onClick={() => { setSettingsSection('appearance'); setSettingsFeedback('') }}><span>Appearance<small>Motion preferences</small></span><b aria-hidden="true">›</b></button>
+              <button type="button" onClick={() => { setSettingsSection('connection'); setSettingsFeedback('') }}><span>Connection<small>Browser and device status</small></span><b aria-hidden="true">›</b></button>
+              <button type="button" onClick={() => { setSettingsSection('notifications'); setSettingsFeedback('') }}><span>Notifications<small>Device status alerts</small></span><b aria-hidden="true">›</b></button>
+            </div> : <>
+              <button className="settings-menu-back" type="button" onClick={() => { setSettingsSection(null); setSettingsFeedback('') }}>← All settings</button>
+              {settingsSection === 'appearance' && <section className="settings-menu-detail" aria-label="Appearance settings">
+                <p className="settings-menu-section-title">Appearance</p>
+                <label className="settings-menu-toggle"><span><strong>Reduce motion</strong><small>Pause animated background and reduce transitions.</small></span><input type="checkbox" checked={reduceMotion} onChange={(event) => { const enabled = event.target.checked; localStorage.setItem('loki-reduce-motion', String(enabled)); setReduceMotion(enabled) }} /></label>
+              </section>}
+              {settingsSection === 'connection' && <section className="settings-menu-detail" aria-label="Connection settings">
+                <p className="settings-menu-section-title">Connection</p>
+                <p className="settings-menu-status"><i className={typeof navigator !== 'undefined' && 'hid' in navigator ? 'is-ready' : ''} />{typeof navigator !== 'undefined' && 'hid' in navigator ? 'WebHID is available in this browser.' : 'WebHID is unavailable. Use Chrome or Edge on localhost/HTTPS.'}</p>
+                <p className="settings-menu-copy">{devices.length ? `${devices.length} device${devices.length === 1 ? '' : 's'} connected. ${deviceName}.` : 'No device is currently connected.'}</p>
+                <button className="settings-menu-action" type="button" disabled={typeof navigator === 'undefined' || !('hid' in navigator)} onClick={() => { setSettingsOpen(false); setSettingsSection(null); void connectDevice(true) }}>{devices.length ? 'Connect another device' : 'Connect a device'}</button>
+              </section>}
+              {settingsSection === 'notifications' && <section className="settings-menu-detail" aria-label="Notification settings">
+                <p className="settings-menu-section-title">Notifications</p>
+                <label className="settings-menu-toggle"><span><strong>Device status alerts</strong><small>Show a browser alert when connection status changes.</small></span><input type="checkbox" checked={browserNotificationsEnabled} onChange={(event) => void updateBrowserNotifications(event.target.checked)} /></label>
+                {typeof Notification === 'undefined' ? <p className="settings-menu-copy">This browser does not support notifications.</p> : Notification.permission === 'denied' && <p className="settings-menu-copy">Notifications are blocked. Allow them for this site in browser settings.</p>}
+              </section>}
+              {settingsFeedback && <small className="settings-menu-feedback" role="status" aria-live="polite">{settingsFeedback}</small>}
+            </>}
+          </div>}
           {userMenuOpen && <div className="top-menu user-menu">
             {isSignedIn
               ? <AuthenticatedSessionPanel email={authUserEmail} role={userRole} isAdminView={adminView} onToggleAdmin={() => setAdminView((current) => !current)} onSignOut={() => void signOut()} />
@@ -1525,6 +1805,7 @@ function App() {
       </nav>
 
       <p className="sr-only" aria-live="polite">{connectionMessage}</p>
+      {deviceCloudSyncStatus && <div className="device-cloud-sync-toast" role="status" aria-live="polite">{deviceCloudSyncStatus}</div>}
 
       {displayDevices.length > 0 && !deviceHubOpen && !adminView && <ConnectedDeviceStage devices={displayDevices} selectedDevice={selectedDevice} onSelect={selectDevice} onConnect={connectDevice} />}
 
@@ -1565,7 +1846,7 @@ function App() {
               <AIRecommendationPanel activeProfile={activeProfile} selectedRecommendation={selectedRecommendation} onOpenPreview={setProfilePreview} onApplyRecommendation={applyRecommendationProfile} />
               <DeviceCatalogPanel />
               <ProfileControlCenter profileName={activeProfile} deviceCount={displayDevices.length} syncStatus={connected ? 'Synced' : 'Standby'} />
-              <SavedProfilesPanel profiles={profiles} activeProfile={activeProfile} onSelectProfile={(profile) => { setActiveProfile(profile); saveActiveProfile(profileStorage, profileStorageKeys.activeProfile, profile) }} onCreateProfile={addProfile} />
+              <SavedProfilesPanel profiles={profiles} activeProfile={activeProfile} onSelectProfile={(profile) => { setActiveProfile(profile); if (isSignedIn) saveActiveProfile(localStorage, 'loki-active-profile', profile) }} onCreateProfile={addProfile} onRenameProfile={renameProfile} onDeleteProfile={deleteProfile} />
               <SmartInsightsPanel />
               <AITroubleshootingPanel />
             </div>
@@ -1583,7 +1864,7 @@ function App() {
             <div><p>LOKI / ACCOUNT</p><h2>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</h2></div>
             <button type="button" onClick={() => { setAuthFormOpen(false); setAuthFeedback('') }} aria-label="Close account dialog" title="Close account dialog">×</button>
           </header>
-          <AuthFormPanel mode={authMode} email={authEmail} password={authPassword} feedback={authFeedback} oauthBusy={authProviderBusy} onEmailChange={setAuthEmail} onPasswordChange={setAuthPassword} onSubmit={() => void signIn(authMode)} onOAuth={(provider) => void signInWithProvider(provider)} onCancel={() => { setAuthFormOpen(false); setAuthFeedback('') }} />
+          <AuthFormPanel mode={authMode} email={authEmail} password={authPassword} feedback={authFeedback} oauthBusy={authProviderBusy} onModeChange={(mode) => { setAuthMode(mode); setAuthFeedback(''); setAuthPassword('') }} onEmailChange={setAuthEmail} onPasswordChange={setAuthPassword} onSubmit={() => void signIn(authMode)} onOAuth={(provider) => void signInWithProvider(provider)} onCancel={() => { setAuthFormOpen(false); setAuthFeedback('') }} />
         </section>
       </div>,
       document.body,

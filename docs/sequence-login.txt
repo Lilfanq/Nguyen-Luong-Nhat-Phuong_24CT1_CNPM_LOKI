@@ -1,49 +1,72 @@
 @startuml LOKI_Email_Login
-title LOKI - Đăng nhập bằng email và tải hồ sơ
-actor "Người dùng" as User
-boundary "Biểu mẫu xác thực\nfrontend/src/features/auth/AuthFormPanel.jsx" as Form
-control "Điều phối ứng dụng\nfrontend/src/App.jsx\nsignIn() / restoreSession()" as App
-participant "SDK JavaScript của Supabase" as SDK
-participant "Dịch vụ xác thực Supabase" as Auth
-database "auth.users\n(danh tính tài khoản)" as AuthUsers
-participant "PostgREST + RLS\n(API và bảo mật theo hàng)" as API
-database "public.app_users" as AppUsers
-database "public.user_profiles" as Profiles
-database "Bộ nhớ trình duyệt\nlocalStorage" as Local
+title LOKI - Đăng nhập bằng email
+actor "User | Người dùng" as User
+boundary "FR | Frontend (trình duyệt)\nfrontend/src/App.jsx\nfrontend/src/features/auth/AuthFormPanel.jsx" as FR
+control "BE | Supabase Auth / PostgREST\nDịch vụ Supabase quản lý" as BE
+database "DB | Supabase PostgreSQL: postgres\nProject: ynccytvbcsfutwstwmjr\nBảng: auth.users, public.app_users,\npublic.user_profiles" as DB
 
-User -> Form : Nhập email/mật khẩu; chọn Đăng nhập
-Form -> App : Gửi biểu mẫu (onSubmit())
-App -> SDK : auth.signInWithPassword(email, password)
-SDK -> Auth : Xác minh thông tin đăng nhập
-Auth -> AuthUsers : Kiểm tra danh tính/mật khẩu đã băm
-AuthUsers --> Auth : Kết quả xác minh danh tính
-alt Thông tin đăng nhập không hợp lệ
-  Auth --> SDK : Lỗi xác thực
-  SDK --> App : Trả về lỗi
-  App --> Form : Hiển thị thông báo lỗi
-  Form --> User : Giữ biểu mẫu đăng nhập
-else Thông tin đăng nhập hợp lệ
-  Auth --> SDK : Phiên đăng nhập + JWT
-  SDK --> App : Phiên đã xác thực
-  App -> SDK : getAccountRole(user.id)
-  SDK -> API : SELECT app_users WHERE id = JWT subject
-  API -> AppUsers : Áp dụng RLS: chính chủ hoặc admin
-  AppUsers --> API : Bản ghi vai trò
-  API --> SDK : Vai trò user/admin
-  SDK --> App : Kết quả vai trò
-  App -> SDK : loadProfilesFromSupabase()
-  SDK -> API : SELECT user_profiles WHERE user_id = JWT subject
-  alt Đã áp dụng migration hồ sơ
-    API -> Profiles : Áp dụng RLS chỉ cho chủ sở hữu
-    Profiles --> API : Các hồ sơ thuộc người dùng
-    API --> SDK : Tên hồ sơ + trạng thái đang dùng
-    SDK --> App : Hồ sơ từ máy chủ
-    App -> Local : Gộp hồ sơ từ máy chủ với bộ nhớ cục bộ
-  else Project đang kiểm tra: chưa có bảng
-    API --> SDK : 404 PGRST205
-    SDK --> App : Lỗi truy vấn
-    App -> Local : Giữ hồ sơ trong bộ nhớ/mặc định
-  end
-  App --> User : Hiển thị workspace đã đăng nhập
+note right of BE
+  Supabase Auth: xử lý signInWithPassword; xem Authentication > Users.
+  PostgREST: API truy vấn bảng khi frontend lấy role.
+  Xem lời gọi: frontend/src/features/auth/authService.js.
+  Quan sát request trong trình duyệt: Network > auth/v1 hoặc rest/v1.
+  Đây là dịch vụ Supabase quản lý, không phải file server trong repo.
+end note
+
+User -> FR : Nhập email, mật khẩu; chọn Đăng nhập
+FR -> FR : Loại bỏ khoảng trắng; kiểm tra dữ liệu rỗng
+note right of FR
+  Nếu email hoặc mật khẩu rỗng: báo lỗi và dừng,
+  không gửi yêu cầu đến Supabase.
+  Luồng tiếp theo giả định đã nhập đủ thông tin.
+end note
+
+FR -> BE : signInWithPassword({ email, password })
+BE -> DB : Tra cứu danh tính trong auth.users
+alt Xác thực thất bại
+  DB --> BE : Không tìm thấy hoặc trả dữ liệu xác thực
+  BE -> BE : Xác minh thất bại; chuẩn bị lỗi Auth
+else Xác thực thành công
+  DB --> BE : Dữ liệu xác thực của tài khoản
+  BE -> BE : Xác minh thành công; tạo session
 end
+BE --> FR : result.error hoặc result.data.user và session
+FR -> FR : Kiểm tra error và user
+note right of FR
+  error có giá trị: lưu lỗi đăng nhập.
+  Không lỗi nhưng user rỗng: lưu lỗi không nhận được tài khoản.
+  Không lỗi và có user: lấy role, cập nhật trạng thái đăng nhập.
+end note
+
+opt Không có lỗi và có user
+  FR -> BE : Đọc role qua PostgREST theo user.id
+  BE -> DB : SELECT role FROM public.app_users (RLS)
+  DB --> BE : Role, không có dòng hoặc lỗi
+  BE --> FR : Kết quả truy vấn role
+  FR -> FR : Dùng role admin/user; lỗi thì dùng user
+  FR -> FR : Gộp dữ liệu phiên khách với localStorage; cập nhật session UI
+  opt Có user hiện tại và profile để đồng bộ
+    FR -> BE : Gửi profile qua PostgREST (bất đồng bộ)
+    BE -> DB : UPSERT public.user_profiles (RLS)
+    DB --> BE : Kết quả hoặc lỗi
+    BE --> FR : Kết quả đồng bộ
+  end
+end
+FR --> User : Cập nhật giao diện theo kết quả
+
+note over FR,BE
+  Form: frontend/src/features/auth/AuthFormPanel.jsx
+  Điều phối signIn(): frontend/src/App.jsx
+  Đọc role: frontend/src/features/auth/authService.js
+  Supabase client: frontend/src/supabaseClient.js (mã frontend).
+  Supabase Auth / PostgREST là backend managed, không có server Auth riêng trong repo.
+end note
+note over BE,DB
+  auth.users do Supabase Auth quản lý; app không đọc mật khẩu thô từ DB.
+  Khung alt mô tả xác thực thông thường; lỗi mạng hoặc dịch vụ cũng có thể xảy ra.
+  public.app_users: backend/supabase/admin_roles.sql.
+  public.user_profiles: backend/supabase/migrations/202610090001_user_profiles.sql.
+  Profile còn được tải riêng bởi useEffect; thứ tự tải/ghi cloud không bảo đảm.
+  Đồng bộ cloud phụ thuộc migration, quyền RLS và trạng thái triển khai.
+end note
 @enduml

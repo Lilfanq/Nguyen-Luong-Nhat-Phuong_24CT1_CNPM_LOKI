@@ -1,0 +1,65 @@
+flowchart TD
+    Start([Người dùng mở LOKI]) --> Restore{"Đã có phiên Supabase?"}
+    Restore -- Chưa --> Guest["Vào chế độ khách<br/>Dữ liệu tạm trong sessionStorage"]
+    Restore -- Rồi --> Role["Khôi phục phiên<br/>Lấy role từ public.app_users"]
+    Role --> IsAdmin{"Role là admin?"}
+    IsAdmin -- Có --> Admin["Admin Dashboard<br/>Xem tài khoản / đổi role qua RPC"]
+    IsAdmin -- Không --> Dashboard
+    Guest --> Dashboard["Dashboard / Device Hub"]
+    Dashboard --> HeaderSettings["Header Settings<br/>Appearance / Connection / Notifications"]
+    HeaderSettings --> Dashboard
+
+    Guest -. Chọn Login hoặc Sign up .-> AuthModal["Mở account modal"]
+    AuthModal --> AuthMethod{"Chọn cách xác thực"}
+    AuthMethod -- Email --> Required{"Đã nhập email và mật khẩu?"}
+    Required -- Chưa --> RequiredError["Hiện yêu cầu nhập đủ"]
+    RequiredError --> AuthModal
+    Required -- Đã nhập --> EmailAuth["Supabase Auth: signInWithPassword / signUp"]
+    AuthMethod -- Google / Discord --> ProviderCheck{"Provider được bật?"}
+    ProviderCheck -- Chưa --> ProviderError["Hiện lỗi cấu hình trong modal"]
+    ProviderError --> AuthModal
+    ProviderCheck -- Rồi --> OAuth["OAuth redirect và callback về LOKI"]
+    EmailAuth --> AuthResult{"Xác thực thành công?"}
+    OAuth --> AuthResult
+    AuthResult -- Không --> AuthError["Hiện lỗi; giữ form để thử lại"]
+    AuthError --> AuthModal
+    AuthResult -- Có --> Role
+
+    Dashboard --> WebHID{"Trình duyệt hỗ trợ WebHID?"}
+    WebHID -- Không --> Unsupported["Yêu cầu Chrome/Edge và HTTPS"]
+    WebHID -- Có --> Granted["navigator.hid.getDevices()"]
+    Granted --> HasDevice{"Đã cấp quyền thiết bị trước đây?"}
+    HasDevice -- Có --> OpenDevice["Mở thiết bị HID"]
+    HasDevice -- Chưa --> RequestDevice["requestDevice()<br/>Trình duyệt hỏi quyền"]
+    RequestDevice --> Permission{"Người dùng chọn thiết bị?"}
+    Permission -- Hủy / từ chối --> Cancelled["Báo chưa kết nối"]
+    Permission -- Có --> OpenDevice
+    OpenDevice --> DeviceList["Hiển thị thiết bị đã kết nối"]
+    DeviceList --> Workspace["Chọn thiết bị<br/>Mở Device Workspace"]
+    DeviceList -. "đã đăng nhập + migration" .-> DeviceInventory["Upsert metadata model<br/>public.user_devices"]
+
+    Workspace --> Map["Button assignments<br/>Mở danh sách và sửa thao tác nút"]
+    Workspace --> Settings["Settings workspace<br/>Performance / Power / Calibration / Advanced"]
+    Workspace --> Profiles["Chọn, tạo hoặc đổi tên profile"]
+    Workspace --> ProductLab["Product Lab<br/>Recommendations / catalog / insights"]
+    Workspace --> Assistant["Hỏi LOKI Assistant"]
+
+    Map --> LocalActions["Lưu button mapping vào browser storage"]
+    Settings --> LocalSettings["Lưu device settings vào browser storage<br/>Không ghi trực tiếp xuống firmware"]
+    Profiles --> LocalProfiles["Lưu profile trong browser storage<br/>Đổi tên sẽ chuyển settings/mappings/history sang tên mới"]
+    LocalProfiles --> CloudProfile{"Đã đăng nhập và migration user_profiles có sẵn?"}
+    CloudProfile -- Có --> Upsert["Thử UPSERT public.user_profiles"]
+    CloudProfile -- Chưa --> LocalOnly["Chỉ lưu cục bộ"]
+
+    Assistant --> Edge["Gọi Supabase Edge Function: loki-chat"]
+    Edge --> LLM["LLM trả lời / đề xuất action"]
+    LLM --> Validate{"Action hợp lệ theo rule của app?"}
+    Validate -- Có --> Apply["Cập nhật profile hoặc mapping trong app"]
+    Validate -- Không --> Reject["Bỏ qua action và báo lý do"]
+
+    classDef start fill:#fff,stroke:#222,stroke-width:2px,color:#111;
+    classDef decision fill:#fff,stroke:#444,stroke-width:1.5px,color:#111;
+    classDef process fill:#f4f4f4,stroke:#666,color:#111;
+    class Start start;
+    class Restore,IsAdmin,AuthMethod,Required,ProviderCheck,AuthResult,WebHID,HasDevice,Permission,CloudProfile,Validate decision;
+    class Guest,Role,Admin,Dashboard,HeaderSettings,AuthModal,EmailAuth,OAuth,DeviceList,DeviceInventory,Workspace,Map,Settings,Profiles,ProductLab,Assistant,LocalActions,LocalSettings,LocalProfiles,Upsert,LocalOnly,Edge,LLM,Apply,Reject process;

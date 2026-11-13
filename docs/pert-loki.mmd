@@ -1,0 +1,29 @@
+flowchart LR
+  A["A. Khảo sát yêu cầu + User Flow<br/>O=1, M=2, P=3, Te=2 ngày"]
+  B["B. Wireframe + Mockup<br/>O=1, M=2, P=4, Te=2.2 ngày"]
+  C["C. Auth + thiết kế DB<br/>O=2, M=3, P=5, Te=3.2 ngày"]
+  D["D. WebHID + Device Workspace<br/>O=2, M=4, P=7, Te=4.2 ngày"]
+  E["E. Profile + lưu Settings<br/>O=1, M=3, P=5, Te=3 ngày"]
+  F["F. AI Assistant + Edge Function<br/>O=2, M=4, P=7, Te=4.2 ngày"]
+  G["G. Tích hợp + hoàn thiện UX<br/>O=2, M=3, P=5, Te=3.2 ngày"]
+  H["H. Usability test + sửa lỗi<br/>O=1, M=2, P=4, Te=2.2 ngày"]
+  I["I. Demo + báo cáo + ERD<br/>O=1, M=2, P=3, Te=2 ngày"]
+
+  A --> B
+  A --> C
+  A --> D
+  D --> E
+  C --> F
+  B --> G
+  E --> G
+  F --> G
+  G --> H
+  H --> I
+
+  classDef critical fill:#ffe4e1,stroke:#b42318,stroke-width:3px,color:#111;
+  classDef normal fill:#f3f4f6,stroke:#4b5563,color:#111;
+  class A,C,F,G,H,I critical;
+  class B,D,E normal;
+
+  N["Te = (O + 4M + P) / 6<br/>Đường găng ước tính: A → C → F → G → H → I ≈ 16.7 ngày công"]
+  N -. Ghi chú .-> I

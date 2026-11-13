@@ -1,6 +1,6 @@
 # LOKI - Technical and Oral Defense Guide
 
-Snapshot checked on 2026-10-09. This guide describes the code and the linked Supabase project as they exist now; it distinguishes implemented behavior from dashboard setup that is still missing.
+Snapshot checked on 2026-11-05. This guide describes the code and the linked Supabase project as they exist now; it distinguishes implemented behavior from dashboard setup that is still missing.
 
 ## 1. Request checklist
 
@@ -8,9 +8,12 @@ Snapshot checked on 2026-10-09. This guide describes the code and the linked Sup
 | --- | --- | --- |
 | Dashboard and account-menu spacing | Mostly done | Responsive account menu is now anchored to the viewport; mobile controls fit. Recheck the supplied reference screenshot if it shows a different board state. |
 | Google and Discord sign-in | Working | Supabase Auth reports both providers enabled, and the user has confirmed successful sign-in with both. |
-| Registration and database receipt | Partial | Email signup calls Supabase Auth. `public.app_users` exists, but its auth trigger cannot be confirmed with the public key. `public.user_profiles` is missing from the cloud project. |
+| Registration and database receipt | Partial | Email signup calls Supabase Auth. `public.app_users` exists, but its auth trigger cannot be confirmed with the public key. `public.user_profiles` was still missing in the 2026-11-05 read-only check. |
 | Frontend/backend folder split | Done for this architecture | React code is under `frontend/`; Supabase backend resources are under `backend/supabase/`. There is intentionally no separate Express server. |
-| Sequence diagrams | Partial, corrected | Login/register represent Supabase Auth. Device/admin diagrams now match WebHID and the actual RLS/RPC flow. OAuth has its own diagram. |
+| Sequence diagrams | Main four prepared | Register, login, selected function 1 (WebHID/device setup), selected function 2 (AI assistant); OAuth/admin are supplementary. Every main diagram has User/FR/BE/DB lifelines. |
+| PERT chart | Prepared as estimate | [`pert-loki.mmd`](pert-loki.mmd) gives O/M/P estimates and an estimated critical path; durations are planning assumptions, not actual tracked time. |
+| User Flow and Wireframe | Prepared | [`flowchart-loki.mmd`](flowchart-loki.mmd), `wireframe-loki.svg`, and the FigJam board. The PNG is only a visual reference; native FigJam shapes are editable. |
+| Usability test | Simulation only | [`usability-test-step5.md`](usability-test-step5.md) and PDF contain hypothetical data. Actual participants and results are still required for a real usability-test claim. |
 | Database destination/name | Identified | Supabase project ref `ynccytvbcsfutwstwmjr`; URL `https://ynccytvbcsfutwstwmjr.supabase.co`; managed Postgres database is `postgres`, with `auth` and `public` schemas. |
 | Feature modules | Mostly done | Auth, admin, assistant, devices, profiles, recommendations, and insights have folders. `App.jsx` remains the app orchestrator and still owns HID lifecycle/workspace logic. |
 | A-to-Z technical explanation | Added | Use this guide and the linked sequence diagrams for the defense. |
@@ -23,7 +26,7 @@ LOKI is a React 19 + Vite browser application deployed to GitHub Pages. Supabase
 User
   -> GitHub Pages: React/Vite frontend
       -> Supabase Auth -> auth.users
-      -> Supabase PostgREST + RLS -> public.app_users / public.user_profiles
+      -> Supabase PostgREST + RLS -> public.app_users / public.user_profiles / public.user_devices
       -> Supabase Edge Function: loki-chat -> external LLM API
       -> Browser WebHID -> user's mouse/keyboard
       -> localStorage/sessionStorage -> local device/profile state
@@ -39,10 +42,13 @@ LOKI/
 |-- backend/supabase/
 |   |-- admin_roles.sql                 app_users, trigger, RLS, admin RPC
 |   |-- config.toml                     project ref + Edge Function config
-|   |-- migrations/                     SQL schema migrations
+|   |-- migrations/                     profile and device-inventory SQL migrations
 |   `-- functions/loki-chat/index.ts    Deno AI Edge Function
 |-- docs/
 |   |-- project-defense-guide.md        architecture and oral-defense notes
+|   |-- pert-loki.mmd                    PERT estimate and critical path
+|   |-- sequence-assistant.txt           selected function 2: AI assistant
+|   |-- usability-test-step5.md         simulated Step 5 results (not empirical)
 |   |-- admin-roles-setup.md             first-admin setup
 |   |-- erd.txt                          database ERD (PlantUML source)
 |   `-- sequence-*.txt                   login/register/OAuth/HID/admin flows
@@ -78,12 +84,14 @@ Files under `frontend/src/features/` are grouped by responsibility, but `App.jsx
 - `frontend/src/features/auth/`: email form modal, guest/authenticated account panels, OAuth preflight/helper, role queries and RPC calls.
 - `frontend/src/features/admin/`: role-protected account console.
 - `frontend/src/features/devices/`: device catalog, workspace settings UI, and local device-setting defaults. WebHID connection/workspace orchestration is still in `App.jsx`.
+- `frontend/src/features/devices/deviceService.js`: saves recognized connected-device model metadata for authenticated users.
 - `frontend/src/features/assistant/`: request to the `loki-chat` Edge Function and validation of proposed actions.
 - `frontend/src/features/profiles/`, `recommendations/`, and `insights/`: profile controls, recommendation UI, diagnostics and insight panels.
 - `frontend/src/profileService.js`: browser storage helpers and the intended `user_profiles` PostgREST synchronization.
 - `frontend/src/supabaseClient.js`: Supabase project URL and public publishable key. A publishable key is expected in browser code; service-role and LLM secrets must never be put here.
 - `backend/supabase/admin_roles.sql`: `app_users`, auth trigger, RLS policies, and admin RPC setup.
 - `backend/supabase/migrations/202610090001_user_profiles.sql`: owner-scoped profile table migration.
+- `backend/supabase/migrations/202611130001_user_devices.sql`: owner-scoped connected-device inventory table migration.
 - `backend/supabase/functions/loki-chat/index.ts`: Deno Edge Function that validates requests, calls the configured LLM, and returns text/tool proposals.
 - `docs/`: ERD, setup instructions, and PlantUML sequence diagrams.
 - Root `vite.config.js`, `package.json`, and `.github/workflows/deploy.yml`: build configuration, commands, and Pages deployment.
@@ -97,15 +105,27 @@ Files under `frontend/src/features/` are grouped by responsibility, but `App.jsx
 | Login identity/password | Supabase Auth `auth.users` | The app does not store passwords in `public.app_users`. Supabase Auth manages password hashing and sessions. |
 | Role and account display metadata | `public.app_users` | `id` is also a foreign key to `auth.users.id`; allowed roles are `user` and `admin`. The auth trigger in `admin_roles.sql` is intended to create/update this row. |
 | Profile names/active flags | Intended `public.user_profiles` | Composite key `(user_id, name)`; RLS is owner-scoped. The table is currently absent from the checked cloud project, so profile upserts do not currently reach Postgres. |
+| Connected supported device inventory | `public.user_devices` | Upserted after a recognized HID device connects for a signed-in user; keyed by `(user_id, device_key)` with owner RLS. Stores model metadata/VID/PID and timestamps, not serial numbers. The migration must be applied before cloud rows appear. |
 | Device settings, button assignments, DPI stage lists, device history | Browser `localStorage` for signed-in users, `sessionStorage` for guests | These are application settings/history, not writes to the physical device and not rows in Supabase. |
-| HID connection | Browser WebHID permission/session | The browser talks directly to the selected hardware. No app backend or database participates in connecting it. |
+| HID connection | Browser WebHID permission/session | The browser talks directly to the selected hardware. Supabase receives only recognized model metadata after connection; it does not scan or control HID. |
 | Chat messages | In-memory React state | The Edge Function receives recent messages/context for a request; the app does not persist chat history to a database. |
 | LLM key | Supabase Edge Function secret | Never expose it in frontend code. Rotate the previously exposed LLM key before relying on this integration. |
 
 ### Cloud checks performed
 
 - `GET /rest/v1/app_users?select=id&limit=0` returned `401` with `permission denied for table app_users`. The error names the existing table and says `anon` lacks `SELECT`; this is consistent with the SQL grant to `authenticated` only and RLS. It does not expose or verify account rows.
-- `GET /rest/v1/user_profiles?select=user_id&limit=0` returned `404 PGRST205`, so this table is not in the project's schema cache. Apply the migration before describing cloud profile sync as working.
+- On 2026-11-05, `GET /rest/v1/user_profiles?select=id&limit=0` returned `404 PGRST205`, so this table is not in the project's schema cache. Apply the migration before describing cloud profile sync as working.
+- The new `user_devices` migration is present in the repository. It must be applied in Supabase before the app can persist inventory; the older `public.devices` table is separate and is not written by LOKI.
+- After applying the device migration and connecting a supported device while signed in, verify inventory with:
+
+  ```sql
+  select device_type, count(*) as total
+  from public.user_devices
+  group by device_type
+  order by device_type;
+  ```
+
+  A zero count in the pre-existing `public.devices` table does not measure this new inventory. If `user_devices` is missing, apply its migration; if it exists but is empty, sign in and reconnect a supported device, then query again.
 - Supabase Auth settings returned `external.google=true` and `external.discord=true`; the user has confirmed successful login with both providers.
 - The public client cannot safely verify whether the auth trigger exists or create a test user without an authorized test account. Verify the trigger in the Supabase SQL Editor; do not paste service-role keys into chat or frontend files.
 
@@ -137,6 +157,8 @@ Google and Discord are enabled in Supabase Dashboard > Authentication > Provider
 
 `App.jsx` checks `navigator.hid`, calls `getDevices()` and, if needed, `requestDevice({ filters: [] })`. The user chooses a device in the browser permission chooser; LOKI opens it and filters to supported device IDs. The browser owns the permission and connection.
 
+After a recognized device connects, authenticated users trigger `frontend/src/features/devices/deviceService.js` to upsert its VID/PID, product/manufacturer name, device type and first/last connection timestamps into `public.user_devices`. Guest users keep only browser state. The migration is `backend/supabase/migrations/202611130001_user_devices.sql`; until it is applied, the local WebHID connection still works but cloud inventory saving fails. This is model-level inventory, not serial-number identity or a firmware scan.
+
 Workspace settings are stored under a key combining device identity and active profile. Signed-in settings use `localStorage`; guest settings use `sessionStorage`. The current app UI can save profile-scoped values such as DPI stages, polling rate, sleep threshold, and button mappings, but it does not send generic settings to the device firmware. Do not claim a physical DPI/polling/RGB write unless a device-specific protocol is implemented and tested.
 
 ## 6. Assistant flow
@@ -162,7 +184,30 @@ The assistant can change LOKI's local profile/button configuration. It cannot wr
 
 At this check, lint has no errors and one existing React Hooks warning in `App.jsx` about `syncDevices`; production build succeeds. There is no test script in `package.json`.
 
-## 9. Short oral-defense answers
+## 9. Mapping to the midterm requirements
+
+### Chapter 1 — Theoretical background
+
+- Product/domain: a browser workspace for gaming peripherals; explain the pain point and intended users.
+- Framework/language/tools: React 19, JavaScript/JSX, Vite, CSS/Tailwind, Supabase, WebHID, GitHub Pages, Git/GitHub, and Figma/FigJam.
+- Architecture: Supabase is a managed/serverless backend; do not describe the project as having its own Express server.
+
+### Chapter 2 — Implementation
+
+| Required section | LOKI deliverable | What to explain/demo |
+| --- | --- | --- |
+| 2.1.1 Register | [`sequence-register.txt`](sequence-register.txt) | `AuthFormPanel` → `App.jsx` → Supabase Auth → `auth.users`; the `app_users` trigger is conditional on being installed. |
+| 2.1.2 Login | [`sequence-login.txt`](sequence-login.txt) | Credential check, session/JWT, role lookup and profile fallback. |
+| 2.1.3 Selected function 1 | [`sequence-device.txt`](sequence-device.txt) | WebHID connection, permission, device workspace and button mapping. |
+| 2.1.4 Selected function 2 | [`sequence-assistant.txt`](sequence-assistant.txt) | Assistant request → `loki-chat` → LLM proposal → frontend action validation. |
+| 2.2 PERT | [`pert-loki.mmd`](pert-loki.mmd) | Explain predecessors, O/M/P estimates, `Te=(O+4M+P)/6`, and the estimated critical path A-C-F-G-H-I (~16.7 person-days). Adjust estimates to the team's real plan. |
+| 2.3 Demo / design steps | [User Flow](flowchart-loki.mmd), [wireframe](wireframe-loki.svg), running LOKI app | Present User Flow, Wireframe, and Prototype/UI. Demo registration/login plus the two selected functions above. State that generic device settings are stored in browser, not written to firmware. |
+| 2.3 Usability results | [Step 5 report PDF](usability-test-step5-report.pdf) | The current PDF is simulated only. For an actual result, have 3–5 people perform the tasks and replace simulated counts/times with observations. |
+| 2.4 Database | [ERD](erd.txt), `backend/supabase/admin_roles.sql`, migration | Explain `auth.users`, `public.app_users`, and intended `public.user_profiles`; browser settings/history are not DB tables. Verify cloud migration/trigger status before claiming cloud sync. |
+
+The two selected functions are a reasonable project-specific choice: **(1) device connection/button setup via WebHID** and **(2) AI assistant setup action**. OAuth and admin diagrams remain supplementary rather than replacing the four required diagrams.
+
+## 10. Short oral-defense answers
 
 - **What is LOKI?** A browser-based gaming-peripheral workspace built with React/Vite, Supabase, and WebHID.
 - **Where is the backend?** Supabase managed services: Auth, Postgres/PostgREST with RLS, and a Deno Edge Function. There is no separate Express server.

@@ -1,39 +1,66 @@
 @startuml LOKI_Email_Register
-title LOKI - Đăng ký bằng email
-actor "Người dùng" as User
-boundary "Biểu mẫu xác thực\nfrontend/src/features/auth/AuthFormPanel.jsx" as UI
-control "Điều phối ứng dụng\nfrontend/src/App.jsx\nsignIn('signup')" as App
-participant "SDK JavaScript của Supabase" as SDK
-participant "Dịch vụ xác thực Supabase" as Auth
-database "auth.users\n(danh tính tài khoản)" as AuthUsers
-participant "Trigger handle_new_loki_user()" as Trigger
-database "public.app_users" as AppUsers
+title LOKI - Đăng ký tài khoản bằng email
+actor "User | Người dùng" as User
+boundary "FR | Frontend (trình duyệt)\nfrontend/src/App.jsx\nfrontend/src/features/auth/AuthFormPanel.jsx" as FR
+control "BE | Supabase Auth / PostgREST\nDịch vụ Supabase quản lý" as BE
+database "DB | Supabase PostgreSQL: postgres\nProject: ynccytvbcsfutwstwmjr\nBảng: auth.users, public.app_users,\npublic.user_profiles" as DB
 
-User -> UI : Nhập email/mật khẩu; chọn Đăng ký
-UI -> App : Gửi biểu mẫu (onSubmit())
-App -> SDK : auth.signUp({ email, password })
-SDK -> Auth : POST /auth/v1/signup
-Auth -> AuthUsers : Tạo danh tính tài khoản
-AuthUsers --> Auth : ID người dùng mới
-opt Đã cài trigger trong backend/supabase/admin_roles.sql
-  AuthUsers -> Trigger : AFTER INSERT (sau khi thêm bản ghi)
-  Trigger -> AppUsers : Thêm vai trò user + metadata
-  AppUsers --> Trigger : Đã tạo bản ghi
-  Trigger --> AuthUsers : Hoàn tất trigger
+note right of BE
+  Supabase Auth: xử lý signUp; xem Authentication > Users.
+  PostgREST: API truy vấn bảng khi frontend lấy role.
+  Xem lời gọi: frontend/src/features/auth/authService.js.
+  Quan sát request trong trình duyệt: Network > auth/v1 hoặc rest/v1.
+  Đây là dịch vụ Supabase quản lý, không phải file server trong repo.
+end note
+
+User -> FR : Nhập email, mật khẩu; chọn Đăng ký
+FR -> FR : Loại bỏ khoảng trắng; kiểm tra dữ liệu rỗng
+note right of FR
+  Nếu email hoặc mật khẩu rỗng: báo lỗi và dừng,
+  không gửi yêu cầu đến Supabase.
+  Luồng tiếp theo giả định đã nhập đủ thông tin.
+end note
+
+FR -> BE : signUp({ email, password })
+BE -> BE : Kiểm tra yêu cầu theo cấu hình Auth
+alt Yêu cầu bị Auth từ chối
+  BE -> BE : Chuẩn bị kết quả lỗi
+else Yêu cầu được xử lý
+  BE -> DB : Kiểm tra email; tạo auth.users nếu cần
+  opt Có INSERT user mới và trigger đã được triển khai
+    DB -> DB : AFTER INSERT gọi handle_new_loki_user()
+    DB -> DB : Tạo/cập nhật public.app_users, role mặc định là user
+  end
+  DB --> BE : Kết quả xử lý danh tính
 end
-alt Cần xác nhận email
-  Auth --> SDK : Đã tạo người dùng; chưa có phiên đăng nhập
-  SDK --> App : Yêu cầu xác nhận email
-  App -> UI : Đóng biểu mẫu và báo kiểm tra email
-  UI --> User : Yêu cầu xác minh địa chỉ email
-else Tắt xác nhận hoặc có phiên đăng nhập trả về
-  Auth --> SDK : Phiên xác thực + JWT
-  SDK --> App : Đã tạo phiên
-  App -> SDK : Đọc vai trò và thử đồng bộ hồ sơ
-  UI --> User : Mở LOKI với trạng thái đã đăng nhập
-end
-note over AuthUsers,AppUsers
-  Danh tính xác thực được tạo độc lập với public.app_users.
-  Cần có trigger thì mới tạo được bản ghi vai trò trong schema public.
+
+BE --> FR : result.error, result.data.session, result.data.user
+FR -> FR : Kiểm tra error, session và user theo thứ tự
+note right of FR
+  error có giá trị: hiển thị lỗi; nếu Auth trả lỗi email trùng,
+  thông báo email đã đăng ký và đề nghị đăng nhập.
+  Không lỗi, session rỗng: giữ form, đề nghị kiểm tra email
+  hoặc đăng nhập nếu đã có tài khoản.
+  Có session, user rỗng: lưu lỗi không nhận được tài khoản.
+  Có session và user: lấy role, cập nhật trạng thái đăng nhập.
+  Có thể chuyển giữa Login và Sign up ngay trong form.
+end note
+FR --> User : Cập nhật giao diện theo kết quả
+
+note over FR,BE
+  Form: frontend/src/features/auth/AuthFormPanel.jsx
+  Điều phối signIn('signup'): frontend/src/App.jsx
+  Đọc role: frontend/src/features/auth/authService.js
+  Supabase client: frontend/src/supabaseClient.js (mã frontend).
+  Lấy role và đồng bộ profile chỉ được gọi khi có session và user.
+  Supabase Auth / PostgREST là backend managed.
+end note
+note over BE,DB
+  DB: auth.users do Supabase Auth quản lý.
+  Quản trị viên kiểm tra riêng email_confirmed_at IS NOT NULL
+  để biết email đã xác nhận; FR không truy vấn cột này.
+  Không có session không chứng minh user mới đã được tạo.
+  Auth có thể không trả lỗi email trùng do cấu hình bảo mật.
+  Trigger / app_users: backend/supabase/admin_roles.sql.
 end note
 @enduml

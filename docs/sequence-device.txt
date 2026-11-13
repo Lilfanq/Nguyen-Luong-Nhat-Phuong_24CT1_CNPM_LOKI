@@ -1,46 +1,47 @@
 @startuml LOKI_WebHID
 title LOKI - Kết nối thiết bị HID được hỗ trợ
-actor "Người dùng" as User
-boundary "Giao diện thiết bị" as FE
-participant "navigator.hid" as WebHID
-participant "Hộp thoại cấp quyền" as Permission
-participant "Thiết bị HID" as Device
-database "Bộ nhớ trình duyệt" as Storage
+actor "User - Người dùng" as User
+boundary "FR - LOKI Frontend\nApp.jsx / DeviceCatalogPanel.jsx" as FR
+control "BE - Supabase PostgREST\n(chỉ nhận inventory sau khi HID kết nối)" as BE
+database "DB - Supabase PostgreSQL\nproject ref: ynccytvbcsfutwstwmjr\npublic.user_devices" as DB
 
-User -> FE : Chọn kết nối thiết bị
-activate FE
+User -> FR : Chọn kết nối thiết bị
+activate FR
 alt WebHID không khả dụng hoặc origin không an toàn
-  FE --> User : Yêu cầu Chrome/Edge và HTTPS
+  FR --> User : Yêu cầu Chrome/Edge và HTTPS
 else WebHID khả dụng
-  FE -> WebHID : getDevices()
+  FR -> FR : navigator.hid.getDevices()
   alt Đã có thiết bị được hỗ trợ và được cấp quyền trước đó
-    WebHID --> FE : Danh sách thiết bị đã cấp quyền
-    FE -> Device : open()
-    Device --> FE : Thiết bị sẵn sàng
+    FR -> FR : Mở thiết bị đã cấp quyền
   else Chưa có thiết bị được cấp quyền
-    FE -> WebHID : requestDevice({ filters: [] })
-    WebHID -> Permission : Mở hộp thoại chọn thiết bị
+    FR -> FR : navigator.hid.requestDevice({ filters: [] })
+    FR --> User : Trình duyệt mở hộp thoại xin quyền
     alt Người dùng chọn thiết bị được hỗ trợ
-      Permission --> WebHID : Tham chiếu thiết bị
-      WebHID --> FE : Trả về thiết bị được chọn
-      FE -> Device : open()
-      Device --> FE : Thiết bị sẵn sàng
+      User --> FR : Chọn thiết bị
+      FR -> FR : device.open()
     else Người dùng hủy hoặc từ chối quyền
-      Permission --> WebHID : NotFoundError / không chọn thiết bị
-      WebHID --> FE : Không có thiết bị được trả về
-      FE --> User : Hiển thị trạng thái đã hủy/bị chặn
+      User --> FR : Hủy / từ chối quyền
+      FR --> User : Hiển thị trạng thái đã hủy/bị chặn
     end
   end
   opt Thiết bị đã kết nối
-    FE -> Storage : Lưu lịch sử thiết bị (chỉ khi đã đăng nhập)
-    FE --> User : Hiển thị workspace thiết bị
+    FR -> FR : Lưu lịch sử localStorage nếu đã đăng nhập
+    opt User đã đăng nhập và migration user_devices đã áp dụng
+      FR -> BE : Gửi metadata model (VID/PID/tên/loại; không serial)
+      BE -> DB : UPSERT public.user_devices (RLS theo user_id)
+      DB --> BE : Lưu thành công hoặc lỗi schema/quyền
+      BE --> FR : Kết quả đồng bộ inventory
+      FR -> FR : Hiển thị trạng thái lưu cloud hoặc chỉ lưu browser
+    end
+    FR --> User : Hiển thị workspace thiết bị
   end
 end
-deactivate FE
-
-note over FE,Storage
-  Mã xử lý: frontend/src/features/devices/DeviceCatalogPanel.jsx và frontend/src/App.jsx.
-  WebHID được gọi trực tiếp từ trình duyệt; kết nối và cài đặt không ghi vào database.
-  localStorage dùng cho người đã đăng nhập; sessionStorage dùng cho khách.
+deactivate FR
+note over FR,DB
+  WebHID chạy trực tiếp giữa browser và thiết bị; Supabase không scan hay điều khiển HID.
+  Sau khi kết nối, user đăng nhập mới ghi metadata model vào public.user_devices.
+  Device settings và button mappings vẫn ở browser storage.
+  Device history được ghi localStorage khi user đăng nhập; guest không ghi history kết nối.
+  Chỉ model được App.jsx nhận diện là hỗ trợ mới được lưu inventory.
 end note
 @enduml

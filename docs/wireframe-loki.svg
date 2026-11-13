@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260">
+  <defs>
+    <style>
+      .bg { fill: #f1f1f1; }
+      .frame { fill: #fff; stroke: #454545; stroke-width: 2; }
+      .panel { fill: #fafafa; stroke: #777; stroke-width: 1.5; }
+      .subtle { fill: #f0f0f0; stroke: #999; stroke-width: 1; }
+      .line { stroke: #666; stroke-width: 1.5; fill: none; }
+      .dash { stroke: #888; stroke-width: 1.2; stroke-dasharray: 6 5; fill: none; }
+      .title { font-family: Arial, sans-serif; font-size: 29px; font-weight: 700; fill: #171717; }
+      .frame-title { font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; fill: #222; }
+      .label { font-family: Arial, sans-serif; font-size: 17px; font-weight: 400; fill: #333; }
+      .small { font-family: Arial, sans-serif; font-size: 15px; font-weight: 400; fill: #555; }
+      .tiny { font-family: Arial, sans-serif; font-size: 13px; font-weight: 400; fill: #666; }
+      .button { fill: #fff; stroke: #555; stroke-width: 1.5; }
+      .primary { fill: #e7e7e7; stroke: #333; stroke-width: 1.8; }
+      .connector { stroke: #777; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#777" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1800" height="1260" />
+  <text class="title" x="40" y="48">LOKI — WIREFRAME</text>
+  <text class="small" x="40" y="76">Bước 2 · Phác bố cục chức năng · Low fidelity</text>
+
+  <!-- A: Dashboard -->
+  <g id="dashboard">
+    <rect class="frame" x="30" y="105" width="540" height="420" />
+    <text class="frame-title" x="50" y="135">01 / DASHBOARD</text>
+    <rect class="panel" x="48" y="150" width="504" height="48" />
+    <text class="label" x="64" y="179">LOKI</text>
+    <rect class="button" x="125" y="160" width="160" height="29" />
+    <text class="small" x="137" y="179">Profile: Default</text>
+    <rect class="button" x="350" y="160" width="58" height="29" />
+    <text class="tiny" x="360" y="179">Settings</text>
+    <rect class="button" x="415" y="160" width="91" height="29" />
+    <text class="tiny" x="429" y="179">Product Lab</text>
+    <rect class="button" x="512" y="160" width="28" height="29" />
+    <text class="tiny" x="521" y="179">U</text>
+
+    <text class="label" x="52" y="226">Thiết bị</text>
+    <text class="tiny" x="52" y="246">Chọn thiết bị hoặc kết nối thêm</text>
+    <rect class="panel" x="52" y="265" width="142" height="158" />
+    <rect class="subtle" x="65" y="279" width="116" height="91" />
+    <text class="small" x="96" y="327">Ảnh chuột</text>
+    <text class="tiny" x="72" y="389">Viper V4 Pro</text>
+    <text class="tiny" x="72" y="408">Đã kết nối</text>
+
+    <rect class="panel" x="209" y="265" width="142" height="158" />
+    <rect class="subtle" x="222" y="279" width="116" height="91" />
+    <text class="small" x="253" y="327">Ảnh bàn phím</text>
+    <text class="tiny" x="230" y="389">AULA Keyboard</text>
+    <text class="tiny" x="230" y="408">Đã kết nối / Offline</text>
+
+    <rect class="button" x="366" y="265" width="142" height="158" />
+    <text class="title" x="427" y="339">+</text>
+    <text class="small" x="393" y="374">Thêm thiết bị</text>
+    <rect class="subtle" x="52" y="441" width="456" height="55" />
+    <text class="small" x="67" y="464">Khách · Login · Sign up</text>
+    <text class="tiny" x="67" y="483">Profile tạm lưu trong sessionStorage</text>
+  </g>
+
+  <!-- B: Device workspace -->
+  <g id="device-workspace">
+    <rect class="frame" x="600" y="105" width="720" height="420" />
+    <text class="frame-title" x="620" y="135">02 / DEVICE WORKSPACE</text>
+    <rect class="panel" x="618" y="150" width="684" height="42" />
+    <rect class="button" x="630" y="157" width="112" height="28" />
+    <text class="tiny" x="644" y="175">← All devices</text>
+    <rect class="subtle" x="824" y="157" width="275" height="28" />
+    <text class="small" x="866" y="176">Viper V4 Pro</text>
+    <rect class="subtle" x="1190" y="157" width="96" height="28" />
+    <text class="tiny" x="1200" y="175">Pin --%</text>
+
+    <rect class="panel" x="660" y="210" width="600" height="220" />
+    <text class="tiny" x="682" y="235">BUTTON MAP</text>
+    <rect class="subtle" x="878" y="248" width="170" height="148" rx="50" />
+    <line class="line" x1="963" y1="255" x2="963" y2="326" />
+    <rect class="subtle" x="934" y="315" width="58" height="25" />
+    <path class="connector" d="M900 271 C850 268 820 260 783 260" />
+    <path class="connector" d="M1026 271 C1070 268 1092 260 1135 260" />
+    <path class="connector" d="M902 321 C850 321 820 314 783 314" />
+    <path class="connector" d="M1001 321 C1060 321 1090 314 1135 314" />
+    <path class="connector" d="M900 371 C850 372 820 379 783 379" />
+    <path class="connector" d="M1025 371 C1070 372 1095 379 1135 379" />
+    <text class="tiny" x="694" y="264">Left</text>
+    <text class="tiny" x="1145" y="264">Right</text>
+    <text class="tiny" x="694" y="318">Wheel click</text>
+    <text class="tiny" x="1145" y="318">Scroll</text>
+    <text class="tiny" x="694" y="383">Side 4 / 5</text>
+    <text class="tiny" x="1145" y="383">DPI cycle</text>
+
+    <rect class="button" x="858" y="441" width="203" height="31" />
+    <text class="tiny" x="875" y="461">Button actions</text>
+    <rect class="subtle" x="1072" y="441" width="198" height="31" />
+    <text class="tiny" x="1090" y="461">Standard | Hypershift</text>
+    <text class="tiny" x="654" y="488">↓ Settings</text>
+  </g>
+
+  <!-- C: Settings workspace -->
+  <g id="settings-workspace">
+    <rect class="frame" x="30" y="555" width="850" height="590" />
+    <text class="frame-title" x="50" y="585">03 / SETTINGS WORKSPACE</text>
+    <rect class="panel" x="48" y="602" width="814" height="62" />
+    <text class="label" x="65" y="628">Settings workspace</text>
+    <text class="tiny" x="65" y="648">Viper V4 Pro  ·  Default profile  ·  Pin</text>
+
+    <rect class="button" x="55" y="680" width="175" height="38" />
+    <rect class="button" x="237" y="680" width="175" height="38" />
+    <rect class="button" x="419" y="680" width="175" height="38" />
+    <rect class="button" x="601" y="680" width="175" height="38" />
+    <text class="small" x="107" y="704">Performance</text>
+    <text class="small" x="303" y="704">Power</text>
+    <text class="small" x="473" y="704">Calibration</text>
+    <text class="small" x="661" y="704">Advanced</text>
+
+    <rect class="panel" x="55" y="738" width="385" height="230" />
+    <text class="label" x="73" y="766">01 / Performance</text>
+    <text class="small" x="73" y="796">DPI stages</text>
+    <rect class="subtle" x="73" y="808" width="335" height="42" />
+    <text class="small" x="89" y="835">400  ·  800  ·  1600  ·  +</text>
+    <text class="small" x="73" y="881">Polling rate</text>
+    <rect class="subtle" x="73" y="894" width="335" height="44" />
+    <text class="small" x="94" y="921">125 | 500 | 1000 | 2000 Hz</text>
+
+    <rect class="panel" x="458" y="738" width="385" height="230" />
+    <text class="label" x="476" y="766">02 / Power</text>
+    <text class="small" x="476" y="802">Sleep timeout</text>
+    <line class="line" x1="478" y1="826" x2="818" y2="826" />
+    <circle cx="616" cy="826" r="7" fill="#888" />
+    <text class="small" x="476" y="862">Low battery alert</text>
+    <line class="line" x1="478" y1="886" x2="818" y2="886" />
+    <circle cx="690" cy="886" r="7" fill="#888" />
+    <text class="tiny" x="476" y="930">Browser profile only</text>
+
+    <rect class="panel" x="55" y="986" width="788" height="115" />
+    <text class="label" x="73" y="1015">03 / Calibration  ·  04 / Advanced</text>
+    <text class="small" x="73" y="1045">Tracking  ·  Cut-off  ·  Curve  ·  Rotation</text>
+    <text class="tiny" x="73" y="1080">Lưu trong browser; chưa ghi xuống firmware</text>
+  </g>
+
+  <!-- D: Product Lab -->
+  <g id="product-lab">
+    <rect class="frame" x="910" y="555" width="410" height="590" />
+    <text class="frame-title" x="930" y="585">04 / PRODUCT LAB</text>
+    <text class="tiny" x="930" y="609">Mở từ thanh điều hướng</text>
+    <rect class="panel" x="930" y="630" width="370" height="112" />
+    <text class="label" x="948" y="658">Gợi ý cấu hình AI</text>
+    <rect class="subtle" x="948" y="674" width="160" height="50" />
+    <rect class="subtle" x="1118" y="674" width="164" height="50" />
+    <text class="tiny" x="967" y="704">FPS</text>
+    <text class="tiny" x="1132" y="704">MOBA</text>
+
+    <rect class="panel" x="930" y="754" width="370" height="94" />
+    <text class="label" x="948" y="782">Device catalog</text>
+    <text class="small" x="948" y="808">Thiết bị và tương thích</text>
+    <text class="tiny" x="948" y="831">Dữ liệu mẫu</text>
+
+    <rect class="panel" x="930" y="860" width="370" height="94" />
+    <text class="label" x="948" y="888">Profiles</text>
+    <text class="small" x="948" y="914">Chọn · Tạo · Áp dụng</text>
+    <text class="tiny" x="948" y="937">Cloud sync: user_profiles</text>
+
+    <rect class="panel" x="930" y="966" width="370" height="135" />
+    <text class="label" x="948" y="994">Insights &amp; hỗ trợ</text>
+    <rect class="subtle" x="948" y="1010" width="334" height="36" />
+    <rect class="subtle" x="948" y="1055" width="334" height="32" />
+    <text class="tiny" x="963" y="1033">Chẩn đoán</text>
+    <text class="tiny" x="963" y="1076">Khắc phục sự cố</text>
+  </g>
+
+  <!-- Auth modal overlay sample -->
+  <g id="account-modal">
+    <rect class="frame" x="1350" y="105" width="420" height="1040" />
+    <text class="frame-title" x="1370" y="135">05 / ACCOUNT</text>
+    <text class="tiny" x="1370" y="158">Mở từ menu User</text>
+    <rect class="panel" x="1370" y="180" width="380" height="365" />
+    <rect class="subtle" x="1388" y="198" width="344" height="58" />
+    <text class="label" x="1404" y="224">Login / Create account</text>
+    <text class="tiny" x="1404" y="244">Nút đóng</text>
+    <rect class="button" x="1388" y="270" width="165" height="42" />
+    <rect class="button" x="1565" y="270" width="167" height="42" />
+    <text class="small" x="1430" y="296">Google</text>
+    <text class="small" x="1602" y="296">Discord</text>
+    <text class="tiny" x="1491" y="332">hoặc email</text>
+    <text class="small" x="1388" y="364">Email</text>
+    <rect class="button" x="1388" y="374" width="344" height="38" />
+    <text class="tiny" x="1402" y="398">Email</text>
+    <text class="small" x="1388" y="438">Password</text>
+    <rect class="button" x="1388" y="448" width="344" height="38" />
+    <text class="tiny" x="1402" y="472">Mật khẩu · tối thiểu 6 ký tự</text>
+    <rect class="primary" x="1388" y="500" width="230" height="34" />
+    <rect class="button" x="1628" y="500" width="104" height="34" />
+    <text class="small" x="1468" y="522">Tiếp tục</text>
+    <text class="small" x="1658" y="522">Hủy</text>
+    <text class="small" x="1370" y="596">Trạng thái tài khoản</text>
+    <rect class="subtle" x="1370" y="612" width="380" height="72" />
+    <text class="tiny" x="1388" y="640">Khách: Login / Sign up</text>
+    <text class="tiny" x="1388" y="661">Đăng nhập: email / role / sign out</text>
+    <rect class="subtle" x="1370" y="705" width="380" height="112" />
+    <text class="label" x="1388" y="735">Tương tác</text>
+    <text class="tiny" x="1388" y="760">Đóng: nền / Escape</text>
+    <text class="tiny" x="1388" y="781">Lỗi hiện dưới trường nhập</text>
+    <text class="tiny" x="1388" y="802">OAuth qua Supabase</text>
+    <text class="tiny" x="1370" y="855">Wireframe: bố cục, chưa phải mockup</text>
+  </g>
+</svg>
